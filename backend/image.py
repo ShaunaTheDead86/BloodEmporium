@@ -1,11 +1,13 @@
 import cv2
 import numpy as np
-import pyautogui
+from PIL import ImageGrab
+
 
 class CVImage:
     """
     A wrapper around the cropped image.
     """
+
     def __init__(self, image_bgr):
         self.bgr = image_bgr
         self.gray = cv2.cvtColor(self.bgr, cv2.COLOR_BGR2GRAY)
@@ -13,8 +15,8 @@ class CVImage:
 
     @staticmethod
     def screen_capture():
-        screenshot = pyautogui.screenshot()
-        screenshot = np.array(screenshot)[:, :, :: -1].copy()
+        screenshot = ImageGrab.grab()
+        screenshot = np.array(screenshot)[:, :, ::-1].copy()
         return CVImage(screenshot)
 
     @staticmethod
@@ -29,6 +31,7 @@ class CVImage:
 
     def get_red(self):
         return self.r.copy()
+
 
 class Image:
     interpolation = cv2.INTER_CUBIC

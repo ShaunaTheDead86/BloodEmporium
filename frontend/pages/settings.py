@@ -1,23 +1,29 @@
-import os
-import sys
+from PyQt6.QtCore import QSize, QTimer
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFileDialog, QGridLayout
+from pynput import keyboard, mouse
 
-from PyQt5.QtCore import QSize, QTimer
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFileDialog, QGridLayout
-from pynput import keyboard
-
-from frontend.generic import Font, TextLabel, TextInputBox, Button, HotkeyInput, ScrollAreaContent, ScrollBar, \
-    ScrollArea, Selector
+from frontend.generic import (
+    Font,
+    TextLabel,
+    TextInputBox,
+    Button,
+    HotkeyInput,
+    ScrollAreaContent,
+    ScrollBar,
+    ScrollArea,
+    Selector,
+)
 from frontend.layouts import RowLayout
 from frontend.stylesheets import StyleSheets
-
-sys.path.append(os.path.dirname(os.path.realpath("backend/state.py")))
-
 from backend.config import Config
 from backend.util.text_util import TextUtil
 
+
 class SettingsPage(QWidget):
     def set_path(self):
-        icon_dir = QFileDialog.getExistingDirectory(self, "Select Icon Folder", self.pathText.text())
+        icon_dir = QFileDialog.getExistingDirectory(
+            self, "Select Icon Folder", self.pathText.text()
+        )
         if icon_dir != "":
             self.pathText.setText(icon_dir)
 
@@ -43,8 +49,10 @@ class SettingsPage(QWidget):
     def save_settings(self):
         path = self.pathText.text()
         if not Config.verify_path(path):
-            self.show_settings_page_save_fail_text("Ensure path is an actual folder (can be empty if you are not using "
-                                                   "custom icons). Changes not saved.")
+            self.show_settings_page_save_fail_text(
+                "Ensure path is an actual folder (can be empty if you are not using "
+                "custom icons). Changes not saved."
+            )
             return
 
         hotkey = self.hotkeyInput.pressed_keys
@@ -61,11 +69,17 @@ class SettingsPage(QWidget):
     def revert_settings(self):
         self.pathText.setText(self.config_cache.path())
         self.hotkeyInput.set_keys(self.config_cache.hotkey())
-        self.primaryMouseSelector.setCurrentIndex(self.primaryMouseSelector.findText(self.config_cache.primary_mouse()))
-        self.show_settings_page_save_success_text("Settings reverted to last saved state.")
+        self.primaryMouseSelector.setCurrentIndex(
+            self.primaryMouseSelector.findText(self.config_cache.primary_mouse())
+        )
+        self.show_settings_page_save_success_text(
+            "Settings reverted to last saved state."
+        )
 
     def start_hotkey_listener(self):
-        self.hotkey_listener = keyboard.Listener(on_press=self.on_key_down, on_release=self.on_key_up)
+        self.hotkey_listener = keyboard.Listener(
+            on_press=self.on_key_down, on_release=self.on_key_up
+        )
         self.hotkey_listener.start()
 
     def stop_hotkey_listener(self):
@@ -74,14 +88,16 @@ class SettingsPage(QWidget):
 
     def on_key_down(self, key):
         if self.hotkey_listener is not None:
-            key = TextUtil.pynput_to_key_string(self.hotkey_listener, key)
+            new_key = TextUtil.pynput_to_key_string(self.hotkey_listener, key)
+            key = new_key if new_key else str(key).replace("Key.", "")
             self.pressed_keys = list(dict.fromkeys(self.pressed_keys + [key]))
             if sorted(self.pressed_keys) == sorted(Config().hotkey()):
                 self.run_terminate()
 
     def on_key_up(self, key):
         if self.hotkey_listener is not None:
-            key = TextUtil.pynput_to_key_string(self.hotkey_listener, key)
+            new_key = TextUtil.pynput_to_key_string(self.hotkey_listener, key)
+            key = new_key if new_key else str(key).replace("Key.", "")
             try:
                 self.pressed_keys.remove(key)
             except ValueError:
@@ -106,67 +122,123 @@ class SettingsPage(QWidget):
         self.scrollAreaContent = ScrollAreaContent(self.scrollArea, "settingsPage")
         self.scrollArea.setWidget(self.scrollAreaContent)
         self.scrollAreaContentLayout = QVBoxLayout(self.scrollAreaContent)
-        self.scrollAreaContentLayout.setObjectName("settingsPageScrollAreaContentLayout")
+        self.scrollAreaContentLayout.setObjectName(
+            "settingsPageScrollAreaContentLayout"
+        )
         self.scrollAreaContentLayout.setContentsMargins(0, 0, 0, 0)
         self.scrollAreaContentLayout.setSpacing(15)
 
-        self.pathLabel = TextLabel(self, "settingsPagePathLabel", "Installation Path", Font(12))
-        self.pathLabelDefaultLabel = TextLabel(self, "settingsPagePathLabelDefaultLabel",
-                                               "<p style=line-height:125%>"
-                                               "You only need to modify this if you are using custom icons.<br>"
-                                               "Default path on Steam is C:/Program Files (x86)/Steam/steamapps/common/"
-                                               "Dead by Daylight/DeadByDaylight/Content/UI/Icons.<br>"
-                                               "Default path on Epic Games is C:/Program Files/Epic Games/"
-                                               "DeadByDaylight/Content/UI/Icons.</p>", Font(10))
+        self.pathLabel = TextLabel(
+            self, "settingsPagePathLabel", "Installation Path", Font(12)
+        )
+        self.pathLabelDefaultLabel = TextLabel(
+            self,
+            "settingsPagePathLabelDefaultLabel",
+            "<p style=line-height:125%>"
+            "You only need to modify this if you are using custom icons.<br>"
+            "Default path on Steam is C:/Program Files (x86)/Steam/steamapps/common/"
+            "Dead by Daylight/DeadByDaylight/Content/UI/Icons.<br>"
+            "Default path on Epic Games is C:/Program Files/Epic Games/"
+            "DeadByDaylight/Content/UI/Icons.</p>",
+            Font(10),
+        )
 
         self.pathRow = QWidget(self)
         self.pathRow.setObjectName("settingsPagePathRow")
         self.pathRowLayout = RowLayout(self.pathRow, "settingsPagePathRowLayout")
 
-        self.pathText = TextInputBox(self, "settingsPagePathText", QSize(550, 40),
-                                     "Path to Dead by Daylight game icon files", str(self.config_cache.path()))
+        self.pathText = TextInputBox(
+            self,
+            "settingsPagePathText",
+            QSize(550, 40),
+            "Path to Dead by Daylight game icon files",
+            str(self.config_cache.path()),
+        )
         self.on_path_update()
         self.pathText.textChanged.connect(self.on_path_update)
-        self.pathButton = Button(self, "settingsPagePathButton", "Browse for icons folder", QSize(180, 35))
+        self.pathButton = Button(
+            self, "settingsPagePathButton", "Browse for icons folder", QSize(180, 35)
+        )
         self.pathButton.clicked.connect(self.set_path)
 
-        self.hotkeyLabel = TextLabel(self, "settingsPageHotkeyLabel", "Hotkey", Font(12))
-        self.hotkeyDescription = TextLabel(self, "settingsPageHotkeyDescription",
-                                           "Shortcut to run or terminate the automatic bloodweb process.", Font(10))
+        self.hotkeyLabel = TextLabel(
+            self, "settingsPageHotkeyLabel", "Hotkey", Font(12)
+        )
+        self.hotkeyDescription = TextLabel(
+            self,
+            "settingsPageHotkeyDescription",
+            "Shortcut to run or terminate the automatic bloodweb process.",
+            Font(10),
+        )
 
-        self.hotkeyInput = HotkeyInput(self, "settingsPageHotkeyInput", QSize(300, 40),
-                                       self.stop_hotkey_listener, self.start_hotkey_listener)
+        self.hotkeyInput = HotkeyInput(
+            self,
+            "settingsPageHotkeyInput",
+            QSize(300, 40),
+            self.stop_hotkey_listener,
+            self.start_hotkey_listener,
+        )
 
-        self.accessibilityLabel = TextLabel(self, "settingsPageAccessibilityLabel", "Accessibility Options", Font(12))
+        self.accessibilityLabel = TextLabel(
+            self, "settingsPageAccessibilityLabel", "Accessibility Options", Font(12)
+        )
 
         self.interactionRow = QWidget(self)
         self.interactionRow.setObjectName("settingsPageInteractionRow")
-        self.interactionRowLayout = RowLayout(self.interactionRow, "settingsPageInteractionRowLayout")
+        self.interactionRowLayout = RowLayout(
+            self.interactionRow, "settingsPageInteractionRowLayout"
+        )
 
-        self.interactionDescription = TextLabel(self, "settingsPageInteractionDescription", "Bloodweb Interaction Mode",
-                                                Font(10))
-        self.interactionSelector = Selector(self, "settingsPageInteractionSelector", QSize(85, 35),
-                                            ["press", "hold"], self.config_cache.interaction())
+        self.interactionDescription = TextLabel(
+            self,
+            "settingsPageInteractionDescription",
+            "Bloodweb Interaction Mode",
+            Font(10),
+        )
+        self.interactionSelector = Selector(
+            self,
+            "settingsPageInteractionSelector",
+            QSize(85, 35),
+            ["press", "hold"],
+            self.config_cache.interaction(),
+        )
 
         self.primaryMouseRow = QWidget(self)
         self.primaryMouseRow.setObjectName("settingsPagePrimaryMouseRow")
-        self.primaryMouseRowLayout = RowLayout(self.primaryMouseRow, "settingsPagePrimaryMouseRowLayout")
+        self.primaryMouseRowLayout = RowLayout(
+            self.primaryMouseRow, "settingsPagePrimaryMouseRowLayout"
+        )
 
-        self.primaryMouseDescription = TextLabel(self, "settingsPagePrimaryMouseDescription", "Primary Mouse Button",
-                                                 Font(10))
-        self.primaryMouseSelector = Selector(self, "settingsPagePrimaryMouseSelector", QSize(80, 35),
-                                             ["left", "right"], self.config_cache.primary_mouse())
+        self.primaryMouseDescription = TextLabel(
+            self,
+            "settingsPagePrimaryMouseDescription",
+            "Primary Mouse Button",
+            Font(10),
+        )
+        self.primaryMouseSelector = Selector(
+            self,
+            "settingsPagePrimaryMouseSelector",
+            QSize(80, 35),
+            ["left", "right"],
+            self.config_cache.primary_mouse(),
+        )
 
         self.saveRow = QWidget(self)
         self.saveRow.setObjectName("settingsPageSaveRow")
         self.saveRowLayout = RowLayout(self.saveRow, "settingsPageSaveRowLayout")
 
-        self.saveButton = Button(self.saveRow, "settingsPageSaveButton", "Save", QSize(60, 35))
+        self.saveButton = Button(
+            self.saveRow, "settingsPageSaveButton", "Save", QSize(60, 35)
+        )
         self.saveButton.clicked.connect(self.save_settings)
-        self.revertButton = Button(self.saveRow, "settingsPageRevertButton", "Revert", QSize(70, 35))
+        self.revertButton = Button(
+            self.saveRow, "settingsPageRevertButton", "Revert", QSize(70, 35)
+        )
         self.revertButton.clicked.connect(self.revert_settings)
 
-        self.saveSuccessText = TextLabel(self.saveRow, "settingsPageSaveSuccessText", "", Font(10))
+        self.saveSuccessText = TextLabel(
+            self.saveRow, "settingsPageSaveSuccessText", "", Font(10)
+        )
         self.saveSuccessText.setVisible(False)
 
         self.pathRowLayout.addWidget(self.pathText)

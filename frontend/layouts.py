@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QHBoxLayout
+from PyQt6.QtWidgets import QHBoxLayout
 
 
 class RowLayout(QHBoxLayout):

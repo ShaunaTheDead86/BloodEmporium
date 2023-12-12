@@ -2,15 +2,15 @@ import cv2
 import numpy as np
 
 from backend.resolution import Resolution
-from data import Data
-from image import Image
+from backend.data import Data
+from backend.image import Image
 
 
 class MergedBase:
     def __init__(self, category=None, retired=False):
         """
         :param category: can be used to reduce the number of valid images needed to be drawn from
-                         is one of Categories.killers or "survivor"
+        is one of Categories.killers or "survivor"
         """
 
         categories = ["universal"]
@@ -25,7 +25,11 @@ class MergedBase:
         if retired:
             categories.append("retired")
 
-        unlockables = [unlockable for unlockable in Data.get_unlockables() if unlockable.category in categories]
+        unlockables = [
+            unlockable
+            for unlockable in Data.get_unlockables()
+            if unlockable.category in categories
+        ]
 
         self.size = 64
         self.names, self.valid_images = self.__get_valid_images(unlockables)
@@ -69,11 +73,19 @@ class MergedBase:
             margin = (dim - self.size) // 2
 
             template = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
-            template = cv2.resize(template, (dim, dim), interpolation=Image.interpolation)
-            template = template[margin:(margin + self.size), margin:(margin + self.size)]
+            template = cv2.resize(
+                template, (dim, dim), interpolation=Image.interpolation
+            )
+            template = template[
+                margin : (margin + self.size), margin : (margin + self.size)
+            ]
 
             # no alpha channel (rgb instead of rgba) - note: alpha=0 denotes full transparency
-            template_alpha = template[:, :, 3] / 255.0 if template.shape[2] == 4 else 1 - template[:, :, 0] * 0
+            template_alpha = (
+                template[:, :, 3] / 255.0
+                if template.shape[2] == 4
+                else 1 - template[:, :, 0] * 0
+            )
             bg_alpha = 1 - template_alpha
 
             gray_bg = np.zeros((self.size, self.size, 3), np.uint8)
@@ -81,7 +93,10 @@ class MergedBase:
             gray_bg[:] = color
 
             for layer in range(3):
-                gray_bg[:, :, layer] = template_alpha * template[:, :, layer] + bg_alpha * gray_bg[:, :, layer]
+                gray_bg[:, :, layer] = (
+                    template_alpha * template[:, :, layer]
+                    + bg_alpha * gray_bg[:, :, layer]
+                )
 
             template = cv2.cvtColor(gray_bg, cv2.COLOR_BGR2GRAY)
 

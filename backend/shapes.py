@@ -25,6 +25,7 @@ class Position:
     def __ne__(self, other):
         return not self == other
 
+
 class Box:
     def __init__(self, x1, y1, x2, y2):
         self.nw = Position(x1, y1)
@@ -40,28 +41,35 @@ class Box:
     def centre(self) -> Position:
         return Position((self.nw.x + self.se.x) // 2, (self.nw.y + self.se.y) // 2)
 
-    def dimensions(self): # width, height
+    def dimensions(self):  # width, height
         return abs(self.nw.x - self.se.x), abs(self.nw.y - self.se.y)
 
     def diameter(self):
         return (abs(self.nw.x - self.se.x) + abs(self.nw.y - self.se.y)) / 2
 
     def close_to(self, other):
-        return self.centre().distance_pos(other.centre()) < max(self.diameter(), other.diameter())
+        return self.centre().distance_pos(other.centre()) < max(
+            self.diameter(), other.diameter()
+        )
 
     def close_to_xy(self, x, y):
         return self.centre().distance_xy(x, y) < self.diameter()
 
     def intersects(self, other):
         # separating axis theorem
-        return not (self.se.x < other.nw.x or self.nw.x > other.se.x or
-                    self.se.y < other.nw.y or self.nw.y > other.se.y)
+        return not (
+            self.se.x < other.nw.x
+            or self.nw.x > other.se.x
+            or self.se.y < other.nw.y
+            or self.nw.y > other.se.y
+        )
 
     def __eq__(self, other):
         return self.nw == other.nw and self.se == other.se
 
     def __ne__(self, other):
         return not self == other
+
 
 class UnmatchedNode:
     def __init__(self, box: Box, confidence, cls_name):
@@ -78,38 +86,17 @@ class UnmatchedNode:
     def __ne__(self, other):
         return not self == other
 
+
 class MatchedNode(UnmatchedNode):
     def __init__(self, box: Box, confidence, cls_name, unique_id=""):
         super().__init__(box, confidence, cls_name)
-        self.unique_id = unique_id # same as unlockable unique id
+        self.unique_id = unique_id  # same as unlockable unique id
 
     @staticmethod
     def from_unmatched_node(unmatched_node: UnmatchedNode, unique_id=""):
-        return MatchedNode(unmatched_node.box, unmatched_node.confidence, unmatched_node.cls_name, unique_id)
-
-class UnlinkedEdge:
-    def __init__(self, position1, position2):
-        self.position1 = position1
-        self.position2 = position2
-
-    def positions(self):
-        return self.position1.x, self.position1.y, self.position2.x, self.position2.y
-
-class LinkedEdge:
-    def __init__(self, node_a: MatchedNode, node_b: MatchedNode):
-        self.node_a = node_a
-        self.node_b = node_b
-
-    def __eq__(self, other):
-        return (self.node_a == other.node_a and self.node_b == other.node_b) or \
-               (self.node_a == other.node_b and self.node_b == other.node_a)
-
-    def __ne__(self, other):
-        return not self == other
-
-    @staticmethod
-    def list_contains(connections, wanted):
-        for connection in connections:
-            if connection == wanted:
-                return True
-        return False
+        return MatchedNode(
+            unmatched_node.box,
+            unmatched_node.confidence,
+            unmatched_node.cls_name,
+            unique_id,
+        )

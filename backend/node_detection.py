@@ -6,8 +6,9 @@ from typing import List, Optional, Tuple
 
 import cv2
 import pytesseract
+from torch import Tensor
 from ultralytics import YOLO
-from ultralytics.yolo.engine.results import Results
+from ultralytics.engine.results import Results
 
 from backend.image import Image
 from backend.mergedbase import MergedBase
@@ -21,10 +22,11 @@ from backend.util.timer import Timer
 # https://stackoverflow.com/questions/66470878/tesseract-ocr-doesnt-work-when-python-script-is-converted-to-exe-without-consol
 pytesseract.pytesseract.tesseract_cmd = os.getcwd() + r"\tesseract\tesseract.exe"
 
+
 class NodeDetection:
     def __init__(self):
         # loads model on init
-        self.model = YOLO("assets/models/nodes v4.pt")
+        self.model = YOLO("models/nodes v4.pt")
         self.model.fuse()
 
         # gets custom names from custom model
@@ -38,20 +40,33 @@ class NodeDetection:
     def preprocess_unlockable(self, xyxy, screenshot, size):
         x1, y1, x2, y2 = xyxy
         x1, y1, x2, y2 = round(x1), round(y1), round(x2), round(y2)
-        height, width = y2 - y1, x2 - x1 # original dim
+        height, width = y2 - y1, x2 - x1  # original dim
 
         # cut out border
-        margin_fraction = 4.2 # (1 / margin_fraction) around each side cut out
-        margin_y, margin_x = round(height / margin_fraction), round(width / margin_fraction)
-        height, width = height - 2 * margin_y, width - 2 * margin_x # dim after removing margins
-        unlockable = screenshot[(y1 + margin_y):(y2 - margin_y), (x1 + margin_x):(x2 - margin_x)]
+        margin_fraction = 4.2  # (1 / margin_fraction) around each side cut out
+        margin_y, margin_x = (
+            round(height / margin_fraction),
+            round(width / margin_fraction),
+        )
+        height, width = (
+            height - 2 * margin_y,
+            width - 2 * margin_x,
+        )  # dim after removing margins
+        unlockable = screenshot[
+            (y1 + margin_y) : (y2 - margin_y), (x1 + margin_x) : (x2 - margin_x)
+        ]
 
         # (assuming size = 64) resize to (64, x) or (x, 64) where x <= 64
-        size = (size, round(size / height * width)) if height > width else \
-            (round(size / width * height), size)
+        size = (
+            (size, round(size / height * width))
+            if height > width
+            else (round(size / width * height), size)
+        )
         return cv2.resize(unlockable, size, interpolation=Image.interpolation)
 
-    def match_unlockable_sift(self, xyxy, screenshot, merged_base: MergedBase) -> Optional[MatchedNode]:
+    def match_unlockable_sift(
+        self, xyxy, screenshot, merged_base: MergedBase
+    ) -> Optional[MatchedNode]:
         size = merged_base.size
         unlockable = self.preprocess_unlockable(xyxy, screenshot, size)
 
@@ -69,8 +84,10 @@ class NodeDetection:
         matches: List[cv2.DescriptorMatcher] = flann.knnMatch(des1, des2, k=2)
 
         # lowe's ratio test
-        threshold = 0.75 # the lower, the harsher
-        good_matches: List[cv2.DMatch] = [m for m, n in matches if m.distance < threshold * n.distance]
+        threshold = 0.75  # the lower, the harsher
+        good_matches: List[cv2.DMatch] = [
+            m for m, n in matches if m.distance < threshold * n.distance
+        ]
 
         # [match.trainIdx] indexes keypoints, [1] grabs y-value
         ys = sorted([kp2[match.trainIdx].pt[1] for match in good_matches])
@@ -96,12 +113,24 @@ class NodeDetection:
         overall_max_loc = None
         tried_shapes = []
         # apply template matching
-        for ratio in [0.8, 1, 0.9, 0.95, 0.85, 0.875, 0.975, 0.925, 0.825]: # TODO accuracy isnt perfect
+        for ratio in [
+            0.8,
+            1,
+            0.9,
+            0.95,
+            0.85,
+            0.875,
+            0.975,
+            0.925,
+            0.825,
+        ]:  # TODO accuracy isnt perfect
             h, w = unlockable.shape
             h, w = round(ratio * h), round(ratio * w)
             if (h, w) in tried_shapes:
                 continue
-            result = cv2.matchTemplate(merged_base.images, cv2.resize(unlockable, (h, w)), cv2.TM_CCOEFF_NORMED)
+            result = cv2.matchTemplate(
+                merged_base.images, cv2.resize(unlockable, (h, w)), cv2.TM_CCOEFF_NORMED
+            )
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
             tried_shapes.append((h, w))
             if max_val > overall_max_val:
@@ -121,7 +150,7 @@ class NodeDetection:
         return match_unique_id
 
     # deprecated
-    '''
+    """
     def match_claimable(self, all_nodes: List[UnmatchedNode], screenshot, merged_base: MergedBase) -> List[MatchedNode]:
         timer = Timer()
         filtered = [node for node in all_nodes if node.cls_name in NodeType.MULTI_CLAIMABLE]
@@ -148,55 +177,73 @@ class NodeDetection:
                 claimable.append(MatchedNode.from_unmatched_node(node, match_unique_id))
         timer.update("match_claimable")
         return claimable
-    '''
+    """
 
     # filter only those with sufficiently high confidence until more robust model
     # TODO ensure there is origin of highest conf if output is > 1 and is not prestige
-    def get_validate_all_nodes(self, results) -> Tuple[List[UnmatchedNode], UnmatchedNode]:
+    def get_validate_all_nodes(
+        self, results
+    ) -> Tuple[List[UnmatchedNode], UnmatchedNode]:
         timer = Timer("get_nodes")
         nodes = []
         prestige = False
         bp_node = None
         for result in results:
-            (x1, y1, x2, y2), confidence, cls = result.boxes.xyxy.numpy()[0], \
-                                                result.boxes.conf.numpy()[0], \
-                                                result.boxes.cls.numpy()[0]
+            (x1, y1, x2, y2), confidence, cls = (
+                Tensor.cpu(result.boxes.xyxy).numpy()[0],
+                Tensor.cpu(result.boxes.conf).numpy()[0],
+                Tensor.cpu(result.boxes.cls).numpy()[0],
+            )
             cls_name = self.CLASS_NAMES_DICT[cls]
             box = Box(round(x1), round(y1), round(x2), round(y2))
             if cls_name == NodeType.BLOODPOINTS:
-                if confidence > 0.3: # TODO hhh set this back to 0.5 or 0.6 after more training on screenshots with low bp
+                if (
+                    confidence > 0.3
+                ):  # TODO hhh set this back to 0.5 or 0.6 after more training on screenshots with low bp
                     if bp_node is None or confidence > bp_node.confidence:
                         bp_node = UnmatchedNode(box, confidence, cls_name)
                         continue
 
-            if prestige: # prestige node has already been found, can ignore everything else except bloodpoint node
+            if prestige:  # prestige node has already been found, can ignore everything else except bloodpoint node
                 continue
 
             if cls_name == NodeType.PRESTIGE:
                 if confidence > 0.7:
                     nodes = [UnmatchedNode(box, confidence, cls_name)]
                     prestige = True
-            else: # all origins, in/accessible, claimed, stolen, void
-                if confidence > 0.5: # sometimes junk with ~0.3 confidence slips through
+            else:  # all origins, in/accessible, claimed, stolen, void
+                if (
+                    confidence > 0.5
+                ):  # sometimes junk with ~0.3 confidence slips through
                     for node in nodes:
-                        if box.close_to(node.box): # new node close to any existing nodes
-                            if confidence > node.confidence: # if this node is more likely to be correct than existing
+                        if box.close_to(
+                            node.box
+                        ):  # new node close to any existing nodes
+                            if (
+                                confidence > node.confidence
+                            ):  # if this node is more likely to be correct than existing
                                 nodes.remove(node)
                                 nodes.append(UnmatchedNode(box, confidence, cls_name))
-                            break # close to existing node: exit out of loop and do not enter else
-                    else: # new node not close to any existing nodes
+                            break  # close to existing node: exit out of loop and do not enter else
+                    else:  # new node not close to any existing nodes
                         nodes.append(UnmatchedNode(box, confidence, cls_name))
 
         timer.update()
         return nodes, bp_node
 
-    def match_nodes(self, all_nodes: List[UnmatchedNode], screenshot, merged_base) -> List[MatchedNode]:
+    def match_nodes(
+        self, all_nodes: List[UnmatchedNode], screenshot, merged_base
+    ) -> List[MatchedNode]:
         timer = Timer("match_nodes")
         matched = []
         for unmatched_node in all_nodes:
             if unmatched_node.cls_name in NodeType.MULTI_UNCLAIMED:
-                match_unique_id = self.match_unlockable_template(unmatched_node.xyxy(), screenshot, merged_base)
-                matched.append(MatchedNode.from_unmatched_node(unmatched_node, match_unique_id))
+                match_unique_id = self.match_unlockable_template(
+                    unmatched_node.xyxy(), screenshot, merged_base
+                )
+                matched.append(
+                    MatchedNode.from_unmatched_node(unmatched_node, match_unique_id)
+                )
             else:
                 matched.append(MatchedNode.from_unmatched_node(unmatched_node))
         timer.update()
@@ -210,14 +257,20 @@ class NodeDetection:
 
         bp_image = ImageUtil.resize(bp_image, new_height=30)
         bp_image = cv2.GaussianBlur(bp_image, (3, 3), 0)
-        bp_image = 255 - bp_image # pytesseract better to invert, easyocr better to have white text black bg
+        bp_image = (
+            255 - bp_image
+        )  # pytesseract better to invert, easyocr better to have white text black bg
         _, bp_image = cv2.threshold(bp_image, 50, 255, cv2.THRESH_BINARY)
 
         try:
             # bp_num = int(self.reader.readtext(bp_image, allowlist="0123456789")[0][1])
-            bp_num = int(pytesseract.image_to_string(bp_image, config="-c tessedit_char_whitelist=0123456789"))
+            bp_num = int(
+                pytesseract.image_to_string(
+                    bp_image, config="-c tessedit_char_whitelist=0123456789"
+                )
+            )
         except ValueError:
-            bp_num = None # TODO figure out a systematic way of accurately determining bp as failsafe eg blur, resize
+            bp_num = None  # TODO figure out a systematic way of accurately determining bp as failsafe eg blur, resize
         print(bp_num)
 
         # cv2.imshow("bp", bp_image)

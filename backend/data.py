@@ -1,8 +1,8 @@
 import os
 import sqlite3
 
-from config import Config
-from paths import Path
+from backend.config import Config
+from backend.paths import Path
 
 replace = {
     "iconPerks_situationalAwareness": ("iconPerks_betterTogether", "retired"),
@@ -11,12 +11,23 @@ replace = {
     "iconPerks_pushThroughIt": ("iconPerks_secondWind", "retired"),
 }
 
+
 class Unlockable:
     @staticmethod
     def generate_unique_id(unlockable_id, category):
         return f"{unlockable_id}_{category}"
 
-    def __init__(self, unlockable_id, name, category, rarity, notes, unlockable_type, image_path, is_custom_icon):
+    def __init__(
+        self,
+        unlockable_id,
+        name,
+        category,
+        rarity,
+        notes,
+        unlockable_type,
+        image_path,
+        is_custom_icon,
+    ):
         self.unique_id = Unlockable.generate_unique_id(unlockable_id, category)
         self.id = unlockable_id
         self.name = name
@@ -33,6 +44,7 @@ class Unlockable:
     def set_is_custom_icon(self, is_custom_icon):
         self.is_custom_icon = is_custom_icon
 
+
 class Data:
     __connection = None
     try:
@@ -42,7 +54,9 @@ class Data:
         print(f"error")
 
     __cursor = __connection.cursor()
-    __cursor.execute("SELECT id, name, category, rarity, notes, type FROM unlockables ORDER BY \"order\"")
+    __cursor.execute(
+        'SELECT id, name, category, rarity, notes, type FROM unlockables ORDER BY "order"'
+    )
     __unlockables_rows = __cursor.fetchall()
 
     __cursor.execute("SELECT * FROM killers")
@@ -53,7 +67,11 @@ class Data:
 
     @staticmethod
     def get_icons():
-        all_files = [(subdir, file) for subdir, dirs, files in os.walk(Config().path()) for file in files]
+        all_files = [
+            (subdir, file)
+            for subdir, dirs, files in os.walk(Config().path())
+            for file in files
+        ]
         icons = {}
         for row in Data.__unlockables_rows:
             og_u_id, _, og_u_category, _, _, _ = row
@@ -65,9 +83,17 @@ class Data:
             for subdir, file in all_files:
                 if u_id in file:
                     # bubba and hillbilly share an addon with the same name
-                    if u_category == "bubba" and u_id == "iconAddon_speedLimiter" and "Xipre" in subdir:
+                    if (
+                        u_category == "bubba"
+                        and u_id == "iconAddon_speedLimiter"
+                        and "Xipre" in subdir
+                    ):
                         continue
-                    elif u_category == "hillbilly" and u_id == "iconAddon_speedLimiter" and "Xipre" not in subdir:
+                    elif (
+                        u_category == "hillbilly"
+                        and u_id == "iconAddon_speedLimiter"
+                        and "Xipre" not in subdir
+                    ):
                         continue
 
                     u_image_path = os.path.normpath(os.path.join(subdir, file))
@@ -81,7 +107,9 @@ class Data:
                     u_image_path = os.path.normpath(os.path.abspath(asset_path))
                     u_is_custom_icon = False
                 else:
-                    print(f"no source found for desired unlockable: {u_id} under category: {u_category}")
+                    print(
+                        f"no source found for desired unlockable: {u_id} under category: {u_category}"
+                    )
                     continue
 
             if u_image_path is not None:
@@ -94,7 +122,11 @@ class Data:
 
     @staticmethod
     def get_unlockables():
-        all_files = [(subdir, file) for subdir, dirs, files in os.walk(Config().path()) for file in files]
+        all_files = [
+            (subdir, file)
+            for subdir, dirs, files in os.walk(Config().path())
+            for file in files
+        ]
         unlockables = []
         for row in Data.__unlockables_rows:
             og_u_id, u_name, og_u_category, u_rarity, u_notes, u_type = row
@@ -106,9 +138,17 @@ class Data:
             for subdir, file in all_files:
                 if u_id in file:
                     # bubba and hillbilly share an addon with the same name
-                    if u_category == "bubba" and u_id == "iconAddon_speedLimiter" and "Xipre" in subdir:
+                    if (
+                        u_category == "bubba"
+                        and u_id == "iconAddon_speedLimiter"
+                        and "Xipre" in subdir
+                    ):
                         continue
-                    elif u_category == "hillbilly" and u_id == "iconAddon_speedLimiter" and "Xipre" not in subdir:
+                    elif (
+                        u_category == "hillbilly"
+                        and u_id == "iconAddon_speedLimiter"
+                        and "Xipre" not in subdir
+                    ):
                         continue
 
                     u_image_path = os.path.normpath(os.path.join(subdir, file))
@@ -122,18 +162,30 @@ class Data:
                     u_image_path = os.path.normpath(os.path.abspath(asset_path))
                     u_is_custom_icon = False
                 else:
-                    print(f"no source found for desired unlockable: {u_id} under category: {u_category}")
+                    print(
+                        f"no source found for desired unlockable: {u_id} under category: {u_category}"
+                    )
                     continue
 
             if u_image_path is not None:
-                unlockables.append(Unlockable(og_u_id, u_name, og_u_category, u_rarity, u_notes, u_type, u_image_path,
-                                              u_is_custom_icon))
+                unlockables.append(
+                    Unlockable(
+                        og_u_id,
+                        u_name,
+                        og_u_category,
+                        u_rarity,
+                        u_notes,
+                        u_type,
+                        u_image_path,
+                        u_is_custom_icon,
+                    )
+                )
 
         return unlockables
 
     @staticmethod
     def get_killers(sort):
-        killers = [killer for killer, in Data.__killers_rows]
+        killers = [killer for (killer,) in Data.__killers_rows]
         return sorted(killers) if sort else killers
 
     @staticmethod
@@ -146,11 +198,25 @@ class Data:
 
     @staticmethod
     def get_types():
-        return ["add-on", "item", "offering", "perk", "universal"] # universal = mystery box
+        return [
+            "add-on",
+            "item",
+            "offering",
+            "perk",
+            "universal",
+        ]  # universal = mystery box
 
     @staticmethod
     def get_rarities():
-        return ["common", "uncommon", "rare", "very_rare", "ultra_rare", "event", "varies"]
+        return [
+            "common",
+            "uncommon",
+            "rare",
+            "very_rare",
+            "ultra_rare",
+            "event",
+            "varies",
+        ]
 
     __costs = {
         "common": 2000,
@@ -159,7 +225,7 @@ class Data:
         "very_rare": 4000,
         "ultra_rare": 5000,
         "event": 2000,
-        "varies": 5000, # assume worst case
+        "varies": 5000,  # assume worst case
     }
 
     @staticmethod
@@ -176,21 +242,34 @@ class Data:
 
         sorted_widgets = unlockable_widgets.copy()
         if sort_by == "name":
-            sorted_widgets.sort(key=lambda widget: widget.unlockable.name.replace("\"", ""))
+            sorted_widgets.sort(
+                key=lambda widget: widget.unlockable.name.replace('"', "")
+            )
         elif sort_by == "character":
             sorted_widgets.sort(key=lambda widget: widget.unlockable.category)
         elif sort_by == "rarity":
-            rarities_enum = {"common": 1, "uncommon": 2, "rare": 3, "very_rare": 4,
-                             "ultra_rare": 5, "event": 6, "varies": 7}
-            sorted_widgets.sort(key=lambda widget: rarities_enum[widget.unlockable.rarity])
+            rarities_enum = {
+                "common": 1,
+                "uncommon": 2,
+                "rare": 3,
+                "very_rare": 4,
+                "ultra_rare": 5,
+                "event": 6,
+                "varies": 7,
+            }
+            sorted_widgets.sort(
+                key=lambda widget: rarities_enum[widget.unlockable.rarity]
+            )
         elif sort_by == "type":
             sorted_widgets.sort(key=lambda widget: widget.unlockable.type)
         elif sort_by == "tier":
+
             def sort(widget):
                 try:
                     return widget.getTiers()
                 except:
                     return 1000, 1000
+
             sorted_widgets.sort(key=sort, reverse=True)
 
         filtered = []

@@ -5,10 +5,32 @@ from multiprocessing import freeze_support, Pipe
 from threading import Thread
 from typing import Tuple
 
-from PyQt5.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve, QPoint, QRect, QObject, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap, QColor
-from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QMainWindow, QFrame, QPushButton, QGridLayout, QVBoxLayout, \
-    QGraphicsDropShadowEffect, QStackedWidget, QSizeGrip, QMessageBox, QSplashScreen
+from PyQt6.QtCore import (
+    Qt,
+    QSize,
+    QPropertyAnimation,
+    QEasingCurve,
+    QPoint,
+    QRect,
+    QObject,
+    pyqtSignal,
+)
+from PyQt6.QtGui import QIcon, QPixmap, QColor
+from PyQt6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QWidget,
+    QMainWindow,
+    QFrame,
+    QPushButton,
+    QGridLayout,
+    QVBoxLayout,
+    QGraphicsDropShadowEffect,
+    QStackedWidget,
+    QSizeGrip,
+    QMessageBox,
+    QSplashScreen,
+)
 
 from frontend.dialogs import UpdateDialog
 from frontend.generic import Font, TextLabel, HyperlinkTextLabel, TextInputBox, Icons
@@ -18,8 +40,6 @@ from frontend.pages.help import HelpPage
 from frontend.pages.preferences import PreferencesPage
 from frontend.pages.settings import SettingsPage
 from frontend.stylesheets import StyleSheets
-
-sys.path.append(os.path.dirname(os.path.realpath("backend/state.py")))
 
 from backend.config import Config
 from backend.runtime import Runtime
@@ -32,10 +52,20 @@ class TopBar(QFrame):
         super().__init__(parent)
         self.setObjectName("topBar")
         self.setMinimumSize(QSize(300, 60))
-        self.setStyleSheet(f"QFrame#topBar {{background-color: {StyleSheets.background};}}")
+        self.setStyleSheet(
+            f"QFrame#topBar {{background-color: {StyleSheets.background};}}"
+        )
+
 
 class TopBarButton(QPushButton):
-    def __init__(self, parent, object_name, icon, on_click, style_sheet=StyleSheets.top_bar_button):
+    def __init__(
+        self,
+        parent,
+        object_name,
+        icon,
+        on_click,
+        style_sheet=StyleSheets.top_bar_button,
+    ):
         super().__init__(parent)
         self.setObjectName(object_name)
         self.setFixedSize(QSize(35, 35))
@@ -46,6 +76,7 @@ class TopBarButton(QPushButton):
         self.setIcon(icon)
 
         self.clicked.connect(on_click)
+
 
 class TitleBar(QWidget):
     def __init__(self, parent, on_double_click, on_drag):
@@ -64,6 +95,7 @@ class TitleBar(QWidget):
     def mouseMoveEvent(self, event):
         self.onDrag(event.globalPos() - self.dragPos)
         self.dragPos = event.globalPos()
+
 
 class LeftMenuButton(QPushButton):
     min_width = 70
@@ -84,7 +116,9 @@ class LeftMenuButton(QPushButton):
         self.page = None
 
         self.is_active = is_active
-        self.setStyleSheet(StyleSheets.left_menu_button(LeftMenuButton.padding, is_active))
+        self.setStyleSheet(
+            StyleSheets.left_menu_button(LeftMenuButton.padding, is_active)
+        )
 
         self.clicked.connect(self.on_click)
 
@@ -102,7 +136,9 @@ class LeftMenuButton(QPushButton):
 
     def deactivate(self):
         self.is_active = False
-        self.setStyleSheet(StyleSheets.left_menu_button_inactive(LeftMenuButton.padding))
+        self.setStyleSheet(
+            StyleSheets.left_menu_button_inactive(LeftMenuButton.padding)
+        )
         self.bar.deactivate()
 
     def on_click(self):
@@ -111,12 +147,15 @@ class LeftMenuButton(QPushButton):
                 button.deactivate()
         self.activate()
 
+
 class LeftMenuBar(QFrame):
     def __init__(self, parent, object_name, visible=False):
         super().__init__(parent)
         self.setObjectName(object_name)
         self.setFixedSize(3, 60)
-        self.setStyleSheet(f"QFrame#{object_name} {{background-color: {StyleSheets.purple};}}")
+        self.setStyleSheet(
+            f"QFrame#{object_name} {{background-color: {StyleSheets.purple};}}"
+        )
         self.setVisible(visible)
 
     def activate(self):
@@ -124,6 +163,7 @@ class LeftMenuBar(QFrame):
 
     def deactivate(self):
         self.setVisible(False)
+
 
 class LeftMenuLabel(QLabel):
     def __init__(self, parent, object_name, text, style_sheet=StyleSheets.white_text):
@@ -133,7 +173,10 @@ class LeftMenuLabel(QLabel):
         self.setFixedHeight(60)
         self.setText(text)
         self.setStyleSheet(style_sheet)
-        self.move(self.geometry().topLeft() - parent.geometry().topLeft() + QPoint(80, 0))
+        self.move(
+            self.geometry().topLeft() - parent.geometry().topLeft() + QPoint(80, 0)
+        )
+
 
 class HomeRow(QWidget):
     def __init__(self, parent, object_number, icon, on_click, text):
@@ -147,6 +190,7 @@ class HomeRow(QWidget):
         self.layout.addWidget(self.button)
         self.layout.addWidget(self.label)
         self.layout.addStretch(1)
+
 
 class HelpRow(QWidget):
     def __init__(self, parent, object_name, icon_path, text):
@@ -166,13 +210,15 @@ class HelpRow(QWidget):
         self.layout.addWidget(self.label)
         self.layout.addStretch(1)
 
+
 class ToggleButton(LeftMenuButton):
     def __init__(self, parent, object_name, icon, main_window, on_click):
         super().__init__(parent, object_name, icon, main_window)
         self.clicked.connect(on_click)
 
     def on_click(self):
-        pass # override base method
+        pass  # override base method
+
 
 class PageButton(QPushButton):
     def __init__(self, parent, object_name, icon, on_click):
@@ -191,17 +237,17 @@ class PageButton(QPushButton):
 class SideGrip(QWidget):
     def __init__(self, parent, edge):
         super().__init__(parent)
-        if edge == Qt.LeftEdge:
-            self.setCursor(Qt.SizeHorCursor)
+        if edge == Qt.Edge.LeftEdge:
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
             self.resizeFunc = self.resizeLeft
-        elif edge == Qt.TopEdge:
-            self.setCursor(Qt.SizeVerCursor)
+        elif edge == Qt.Edge.TopEdge:
+            self.setCursor(Qt.CursorShape.SizeVerCursor)
             self.resizeFunc = self.resizeTop
-        elif edge == Qt.RightEdge:
-            self.setCursor(Qt.SizeHorCursor)
+        elif edge == Qt.Edge.RightEdge:
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
             self.resizeFunc = self.resizeRight
         else:
-            self.setCursor(Qt.SizeVerCursor)
+            self.setCursor(Qt.CursorShape.SizeVerCursor)
             self.resizeFunc = self.resizeBottom
         self.mousePos = None
 
@@ -230,7 +276,7 @@ class SideGrip(QWidget):
         w.resize(w.width(), height)
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.mousePos = event.pos()
 
     def mouseMoveEvent(self, event):
@@ -240,6 +286,7 @@ class SideGrip(QWidget):
 
     def mouseReleaseEvent(self, event):
         self.mousePos = None
+
 
 class MainWindow(QMainWindow):
     def minimize(self):
@@ -267,7 +314,7 @@ class MainWindow(QMainWindow):
 
     def drag(self, dpos):
         if self.is_maximized:
-            pass # TODO if dragging from maximized, after restoring, move window to cursor
+            pass  # TODO if dragging from maximized, after restoring, move window to cursor
         self.restore()
 
         self.move(self.pos() + dpos)
@@ -276,22 +323,41 @@ class MainWindow(QMainWindow):
         self.animation = QPropertyAnimation(self.leftMenu, b"minimumWidth")
         self.animation.setDuration(500)
         self.animation.setStartValue(self.leftMenu.width())
-        self.animation.setEndValue(LeftMenuButton.min_width if self.leftMenu.width() == LeftMenuButton.max_width
-                                   else LeftMenuButton.max_width)
-        self.animation.setEasingCurve(QEasingCurve.InOutQuint)
+        self.animation.setEndValue(
+            LeftMenuButton.min_width
+            if self.leftMenu.width() == LeftMenuButton.max_width
+            else LeftMenuButton.max_width
+        )
+        self.animation.setEasingCurve(QEasingCurve.Type.InOutQuint)
         self.animation.start()
 
     # bloodweb
     def get_runtime_auto_purchase_threshold(self) -> Tuple[str, str] or None:
-        return (self.bloodwebPage.thresholdTierInput.text(), self.bloodwebPage.thresholdSubtierInput.text()) \
-            if (self.bloodwebPage.thresholdCheckBox.isEnabled() and self.bloodwebPage.thresholdCheckBox.isChecked()) \
+        return (
+            (
+                self.bloodwebPage.thresholdTierInput.text(),
+                self.bloodwebPage.thresholdSubtierInput.text(),
+            )
+            if (
+                self.bloodwebPage.thresholdCheckBox.isEnabled()
+                and self.bloodwebPage.thresholdCheckBox.isChecked()
+            )
             else None
+        )
 
     def get_runtime_prestige_limit(self) -> str or None:
-        return self.bloodwebPage.prestigeInput.text() if self.bloodwebPage.prestigeCheckBox.isChecked() else None
+        return (
+            self.bloodwebPage.prestigeInput.text()
+            if self.bloodwebPage.prestigeCheckBox.isChecked()
+            else None
+        )
 
     def get_runtime_bloodpoint_limit(self) -> str or None:
-        return self.bloodwebPage.bloodpointInput.text() if self.bloodwebPage.bloodpointCheckBox.isChecked() else None
+        return (
+            self.bloodwebPage.bloodpointInput.text()
+            if self.bloodwebPage.bloodpointCheckBox.isChecked()
+            else None
+        )
 
     def terminate(self):
         self.state.terminate()
@@ -299,7 +365,7 @@ class MainWindow(QMainWindow):
 
     def run_terminate(self):
         debug, write_to_output = self.bloodwebPage.get_debug_options()
-        if not self.state.is_active(): # run
+        if not self.state.is_active():  # run
             # check auto-purchase tier and subtier threshold
             tier, subtier = None, None
             threshold = self.get_runtime_auto_purchase_threshold()
@@ -308,18 +374,24 @@ class MainWindow(QMainWindow):
                 try:
                     tier = int(tier)
                 except:
-                    return self.bloodwebPage.show_run_error("Threshold tier must be an integer from -999 to 999.", True)
+                    return self.bloodwebPage.show_run_error(
+                        "Threshold tier must be an integer from -999 to 999.", True
+                    )
                 if abs(tier) > 999:
-                    return self.bloodwebPage.show_run_error("Threshold tier must be an integer from -999 to 999.", True)
+                    return self.bloodwebPage.show_run_error(
+                        "Threshold tier must be an integer from -999 to 999.", True
+                    )
 
                 try:
                     subtier = int(subtier)
                 except:
-                    return self.bloodwebPage.show_run_error("Threshold subtier must be an integer from -999 to 999.",
-                                                            True)
+                    return self.bloodwebPage.show_run_error(
+                        "Threshold subtier must be an integer from -999 to 999.", True
+                    )
                 if abs(subtier) > 999:
-                    return self.bloodwebPage.show_run_error("Threshold subtier must be an integer from -999 to 999.",
-                                                            True)
+                    return self.bloodwebPage.show_run_error(
+                        "Threshold subtier must be an integer from -999 to 999.", True
+                    )
 
             # check prestige limit
             prestige_limit = self.get_runtime_prestige_limit()
@@ -327,24 +399,34 @@ class MainWindow(QMainWindow):
                 try:
                     prestige_limit = int(prestige_limit)
                 except:
-                    return self.bloodwebPage.show_run_error("Prestige level must be an integer from 1 to 100.", True)
+                    return self.bloodwebPage.show_run_error(
+                        "Prestige level must be an integer from 1 to 100.", True
+                    )
                 if not (1 <= prestige_limit <= 100):
-                    return self.bloodwebPage.show_run_error("Prestige level must be an integer from 1 to 100.", True)
+                    return self.bloodwebPage.show_run_error(
+                        "Prestige level must be an integer from 1 to 100.", True
+                    )
 
             bp_limit = self.get_runtime_bloodpoint_limit()
             if bp_limit is not None:
                 try:
                     bp_limit = int(bp_limit)
                 except:
-                    return self.bloodwebPage.show_run_error("Bloodpoint limit must be a positive integer.", True)
+                    return self.bloodwebPage.show_run_error(
+                        "Bloodpoint limit must be a positive integer.", True
+                    )
                 if not (1 <= bp_limit):
-                    return self.bloodwebPage.show_run_error("Bloodpoint limit must be a positive integer.", True)
+                    return self.bloodwebPage.show_run_error(
+                        "Bloodpoint limit must be a positive integer.", True
+                    )
 
             # may as well use the validated thresholds & limits
-            self.state.run((debug, write_to_output, tier, subtier, prestige_limit, bp_limit))
+            self.state.run(
+                (debug, write_to_output, tier, subtier, prestige_limit, bp_limit)
+            )
             self.toggle_run_terminate_text("Running...", False, True)
             self.bloodwebPage.start_time()
-        else: # terminate
+        else:  # terminate
             self.terminate()
             self.toggle_run_terminate_text("Manually terminated.", False, True)
 
@@ -375,27 +457,47 @@ class MainWindow(QMainWindow):
 
         out_rect = self.rect()
         out_rect = out_rect.adjusted(10, 10, -10, -10)
-        in_rect = out_rect.adjusted(self.grip_size, self.grip_size, -self.grip_size, -self.grip_size)
+        in_rect = out_rect.adjusted(
+            self.grip_size, self.grip_size, -self.grip_size, -self.grip_size
+        )
 
         # top left
         self.corner_grips[0].setGeometry(QRect(out_rect.topLeft(), in_rect.topLeft()))
         # top right
-        self.corner_grips[1].setGeometry(QRect(out_rect.topRight(), in_rect.topRight()).normalized())
+        self.corner_grips[1].setGeometry(
+            QRect(out_rect.topRight(), in_rect.topRight()).normalized()
+        )
         # bottom right
-        self.corner_grips[2].setGeometry(QRect(in_rect.bottomRight(), out_rect.bottomRight()))
+        self.corner_grips[2].setGeometry(
+            QRect(in_rect.bottomRight(), out_rect.bottomRight())
+        )
         # bottom left
-        self.corner_grips[3].setGeometry(QRect(out_rect.bottomLeft(), in_rect.bottomLeft()).normalized())
+        self.corner_grips[3].setGeometry(
+            QRect(out_rect.bottomLeft(), in_rect.bottomLeft()).normalized()
+        )
 
         # left edge
-        self.side_grips[0].setGeometry(out_rect.left(), in_rect.top(), self.grip_size, in_rect.height())
+        self.side_grips[0].setGeometry(
+            out_rect.left(), in_rect.top(), self.grip_size, in_rect.height()
+        )
         # top edge
-        self.side_grips[1].setGeometry(in_rect.left(), out_rect.top(), in_rect.width(), self.grip_size)
+        self.side_grips[1].setGeometry(
+            in_rect.left(), out_rect.top(), in_rect.width(), self.grip_size
+        )
         # right edge
-        self.side_grips[2].setGeometry(in_rect.left() + in_rect.width(), in_rect.top(), self.grip_size,
-                                       in_rect.height())
+        self.side_grips[2].setGeometry(
+            in_rect.left() + in_rect.width(),
+            in_rect.top(),
+            self.grip_size,
+            in_rect.height(),
+        )
         # bottom edge
-        self.side_grips[3].setGeometry(self.grip_size, in_rect.top() + in_rect.height(), in_rect.width(),
-                                       self.grip_size)
+        self.side_grips[3].setGeometry(
+            self.grip_size,
+            in_rect.top() + in_rect.height(),
+            in_rect.width(),
+            self.grip_size,
+        )
 
         [grip.raise_() for grip in self.side_grips]
         [grip.raise_() for grip in self.corner_grips]
@@ -410,10 +512,11 @@ class MainWindow(QMainWindow):
         self.state = State(state_pipe_)
 
         self.emitter = emitter
-        self.emitter.start() # start the thread, calling Emitter.run()
+        self.emitter.start()  # start the thread, calling Emitter.run()
 
-        self.setWindowFlag(Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        Qt.WindowType.FramelessWindowHint
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         self.setMinimumSize(1100, 600)
         self.resize(1570, 870)
@@ -422,10 +525,10 @@ class MainWindow(QMainWindow):
 
         self.__grip_size = 10
         self.side_grips = [
-            SideGrip(self, Qt.LeftEdge),
-            SideGrip(self, Qt.TopEdge),
-            SideGrip(self, Qt.RightEdge),
-            SideGrip(self, Qt.BottomEdge),
+            SideGrip(self, Qt.Edge.LeftEdge),
+            SideGrip(self, Qt.Edge.TopEdge),
+            SideGrip(self, Qt.Edge.RightEdge),
+            SideGrip(self, Qt.Edge.BottomEdge),
         ]
         self.corner_grips = [QSizeGrip(self) for _ in range(4)]
         for corner_grip in self.corner_grips:
@@ -445,10 +548,12 @@ class MainWindow(QMainWindow):
         # background
         self.background = QFrame(self.centralWidget)
         self.background.setObjectName("background")
-        self.background.setStyleSheet(f"""
+        self.background.setStyleSheet(
+            f"""
             QFrame#background {{
                 background-color: {StyleSheets.passive};
-            }}""")
+            }}"""
+        )
         self.shadow = QGraphicsDropShadowEffect(self)
         self.shadow.setBlurRadius(10)
         self.shadow.setOffset(0, 0)
@@ -496,11 +601,18 @@ class MainWindow(QMainWindow):
         self.windowButtonsLayout.setContentsMargins(0, 0, 0, 0)
         self.windowButtonsLayout.setSpacing(0)
 
-        self.minimizeButton = TopBarButton(self.windowButtons, "minimizeButton", QIcon(Icons.minimize), self.minimize)
-        self.maximizeButton = TopBarButton(self.windowButtons, "maximizeButton",
-                                           QIcon(Icons.restore) if self.is_maximized else QIcon(Icons.maximize),
-                                           self.maximize_restore)
-        self.closeButton = TopBarButton(self.windowButtons, "closeButton", QIcon(Icons.close), self.close)
+        self.minimizeButton = TopBarButton(
+            self.windowButtons, "minimizeButton", QIcon(Icons.minimize), self.minimize
+        )
+        self.maximizeButton = TopBarButton(
+            self.windowButtons,
+            "maximizeButton",
+            QIcon(Icons.restore) if self.is_maximized else QIcon(Icons.maximize),
+            self.maximize_restore,
+        )
+        self.closeButton = TopBarButton(
+            self.windowButtons, "closeButton", QIcon(Icons.close), self.close
+        )
 
         # content
         self.content = QFrame(self.background)
@@ -516,10 +628,12 @@ class MainWindow(QMainWindow):
         self.leftMenu.setObjectName("leftMenu")
         self.leftMenu.setMinimumWidth(LeftMenuButton.min_width)
         self.leftMenu.setMaximumWidth(LeftMenuButton.min_width)
-        self.leftMenu.setStyleSheet(f"""
+        self.leftMenu.setStyleSheet(
+            f"""
             QFrame#leftMenu {{
                 background-color: {StyleSheets.background};
-            }}""")
+            }}"""
+        )
 
         self.leftMenuLayout = QVBoxLayout(self.leftMenu)
         self.leftMenuLayout.setObjectName("leftMenuLayout")
@@ -535,38 +649,61 @@ class MainWindow(QMainWindow):
         self.menuColumnLayout.setContentsMargins(0, 0, 0, 0)
         self.menuColumnLayout.setSpacing(0)
 
-        self.toggleButton = ToggleButton(self.leftMenu, "toggleButton", QIcon(Icons.menu), self, self.animate)
-        self.toggleLabel = LeftMenuLabel(self.toggleButton, "toggleLabel", "Hide", f"color: {StyleSheets.purple};")
+        self.toggleButton = ToggleButton(
+            self.leftMenu, "toggleButton", QIcon(Icons.menu), self, self.animate
+        )
+        self.toggleLabel = LeftMenuLabel(
+            self.toggleButton, "toggleLabel", "Hide", f"color: {StyleSheets.purple};"
+        )
 
-        self.homeButton = LeftMenuButton(self.leftMenu, "homeButton", QIcon(Icons.home), self, True)
+        self.homeButton = LeftMenuButton(
+            self.leftMenu, "homeButton", QIcon(Icons.home), self, True
+        )
         self.homeLabel = LeftMenuLabel(self.homeButton, "homeLabel", "Home")
         self.homeBar = LeftMenuBar(self.homeButton, "homeBar", True)
         self.homeButton.setBar(self.homeBar)
 
-        self.preferencesButton = LeftMenuButton(self.leftMenu, "preferencesButton", QIcon(Icons.preferences), self)
-        self.preferencesLabel = LeftMenuLabel(self.preferencesButton, "preferencesLabel", "Preference Profiles")
+        self.preferencesButton = LeftMenuButton(
+            self.leftMenu, "preferencesButton", QIcon(Icons.preferences), self
+        )
+        self.preferencesLabel = LeftMenuLabel(
+            self.preferencesButton, "preferencesLabel", "Preference Profiles"
+        )
         self.preferencesBar = LeftMenuBar(self.preferencesButton, "preferencesBar")
         self.preferencesButton.setBar(self.preferencesBar)
 
-        self.bloodwebButton = LeftMenuButton(self.leftMenu, "bloodwebButton", QIcon(Icons.bloodweb), self)
+        self.bloodwebButton = LeftMenuButton(
+            self.leftMenu, "bloodwebButton", QIcon(Icons.bloodweb), self
+        )
         self.bloodwebLabel = LeftMenuLabel(self.bloodwebButton, "bloodwebLabel", "Run")
         self.bloodwebBar = LeftMenuBar(self.bloodwebButton, "bloodwebBar")
         self.bloodwebButton.setBar(self.bloodwebBar)
 
         # help button
-        self.helpButton = LeftMenuButton(self.menuColumn, "helpButton", QIcon(Icons.help), self)
+        self.helpButton = LeftMenuButton(
+            self.menuColumn, "helpButton", QIcon(Icons.help), self
+        )
         self.helpLabel = LeftMenuLabel(self.helpButton, "helpLabel", "Help & Contact")
         self.helpBar = LeftMenuBar(self.helpButton, "helpBar")
         self.helpButton.setBar(self.helpBar)
 
         # settings button
-        self.settingsButton = LeftMenuButton(self.menuColumn, "settingsButton", QIcon(Icons.settings), self)
-        self.settingsLabel = LeftMenuLabel(self.settingsButton, "settingsLabel", "Settings")
+        self.settingsButton = LeftMenuButton(
+            self.menuColumn, "settingsButton", QIcon(Icons.settings), self
+        )
+        self.settingsLabel = LeftMenuLabel(
+            self.settingsButton, "settingsLabel", "Settings"
+        )
         self.settingsBar = LeftMenuBar(self.settingsButton, "settingsBar")
         self.settingsButton.setBar(self.settingsBar)
 
-        self.buttons = [self.homeButton, self.preferencesButton, self.bloodwebButton, self.helpButton,
-                        self.settingsButton]
+        self.buttons = [
+            self.homeButton,
+            self.preferencesButton,
+            self.bloodwebButton,
+            self.helpButton,
+            self.settingsButton,
+        ]
 
         # content pages
         self.contentPages = QFrame(self.content)
@@ -598,14 +735,34 @@ class MainWindow(QMainWindow):
         self.homePageIcon.setPixmap(QPixmap(os.getcwd() + "/" + Icons.icon))
         self.homePageIcon.setScaledContents(True)
 
-        self.homePageRow1 = HomeRow(self.homePage, 1, QIcon(Icons.settings), self.settingsButton.on_click,
-                                    "Using a custom icon pack? Set up your settings.")
-        self.homePageRow2 = HomeRow(self.homePage, 2, QIcon(Icons.preferences), self.preferencesButton.on_click,
-                                    "What would you like from the bloodweb? Set up your preferences.")
-        self.homePageRow3 = HomeRow(self.homePage, 3, QIcon(Icons.bloodweb), self.bloodwebButton.on_click,
-                                    "Ready? Start clearing your bloodweb (with optional spending limits)!")
-        self.homePageRow4 = HomeRow(self.homePage, 4, QIcon(Icons.help), self.helpButton.on_click,
-                                    "Instructions & contact details here.")
+        self.homePageRow1 = HomeRow(
+            self.homePage,
+            1,
+            QIcon(Icons.settings),
+            self.settingsButton.on_click,
+            "Using a custom icon pack? Set up your settings.",
+        )
+        self.homePageRow2 = HomeRow(
+            self.homePage,
+            2,
+            QIcon(Icons.preferences),
+            self.preferencesButton.on_click,
+            "What would you like from the bloodweb? Set up your preferences.",
+        )
+        self.homePageRow3 = HomeRow(
+            self.homePage,
+            3,
+            QIcon(Icons.bloodweb),
+            self.bloodwebButton.on_click,
+            "Ready? Start clearing your bloodweb (with optional spending limits)!",
+        )
+        self.homePageRow4 = HomeRow(
+            self.homePage,
+            4,
+            QIcon(Icons.help),
+            self.helpButton.on_click,
+            "Instructions & contact details here.",
+        )
 
         # stack: bloodwebPage
         self.bloodwebPage = BloodwebPage(dev_mode)
@@ -631,17 +788,26 @@ class MainWindow(QMainWindow):
         self.bottomBar = QFrame(self.content)
         self.bottomBar.setObjectName("bottomBar")
         self.bottomBar.setMinimumSize(QSize(0, 25))
-        self.bottomBar.setStyleSheet(f"""
+        self.bottomBar.setStyleSheet(
+            f"""
             QFrame#bottomBar {{
                 background-color: {StyleSheets.selection};
-            }}""")
+            }}"""
+        )
 
         self.bottomBarLayout = RowLayout(self.bottomBar, "bottomBarLayout")
         self.bottomBarLayout.setContentsMargins(10, 0, 10, 0)
 
-        self.authorLabel = HyperlinkTextLabel(self.bottomBar, "authorLabel", "Made by IIInitiationnn",
-                                              "https://github.com/IIInitiationnn/BloodEmporium", Font(8))
-        self.versionLabel = TextLabel(self.bottomBar, "versionLabel", State.version, Font(8))
+        self.authorLabel = HyperlinkTextLabel(
+            self.bottomBar,
+            "authorLabel",
+            "Made by IIInitiationnn",
+            "https://github.com/IIInitiationnn/BloodEmporium",
+            Font(8),
+        )
+        self.versionLabel = TextLabel(
+            self.bottomBar, "versionLabel", State.version, Font(8)
+        )
 
         """
         central
@@ -657,7 +823,9 @@ class MainWindow(QMainWindow):
         """
         self.backgroundLayout.addWidget(self.topBar, 0, 0, 1, 1)
         self.backgroundLayout.addWidget(self.content, 1, 0, 1, 1)
-        self.backgroundLayout.setRowStretch(1, 1) # content fill out as much of background as possible
+        self.backgroundLayout.setRowStretch(
+            1, 1
+        )  # content fill out as much of background as possible
 
         """
         topBar
@@ -665,23 +833,37 @@ class MainWindow(QMainWindow):
            -> titleBar
            -> windowButtons
         """
-        self.topBarLayout.addWidget(self.icon, 0, 0, 1, 1, Qt.AlignVCenter)
-        self.topBarLayout.addWidget(self.titleBar, 0, 1, 1, 1, Qt.AlignVCenter)
-        self.topBarLayout.addWidget(self.windowButtons, 0, 2, 1, 1, Qt.AlignVCenter)
+        self.topBarLayout.addWidget(
+            self.icon, 0, 0, 1, 1, Qt.AlignmentFlag.AlignVCenter
+        )
+        self.topBarLayout.addWidget(
+            self.titleBar, 0, 1, 1, 1, Qt.AlignmentFlag.AlignVCenter
+        )
+        self.topBarLayout.addWidget(
+            self.windowButtons, 0, 2, 1, 1, Qt.AlignmentFlag.AlignVCenter
+        )
 
         """
         titleBar
             -> titleLabel
         """
-        self.titleBarLayout.addWidget(self.titleLabel, 0, 0, 1, 1, Qt.AlignVCenter)
+        self.titleBarLayout.addWidget(
+            self.titleLabel, 0, 0, 1, 1, Qt.AlignmentFlag.AlignVCenter
+        )
 
         """
         windowButtons
             -> 3 buttons
         """
-        self.windowButtonsLayout.addWidget(self.minimizeButton, 0, 0, 1, 1, Qt.AlignVCenter)
-        self.windowButtonsLayout.addWidget(self.maximizeButton, 0, 1, 1, 1, Qt.AlignVCenter)
-        self.windowButtonsLayout.addWidget(self.closeButton, 0, 2, 1, 1, Qt.AlignVCenter)
+        self.windowButtonsLayout.addWidget(
+            self.minimizeButton, 0, 0, 1, 1, Qt.AlignmentFlag.AlignVCenter
+        )
+        self.windowButtonsLayout.addWidget(
+            self.maximizeButton, 0, 1, 1, 1, Qt.AlignmentFlag.AlignVCenter
+        )
+        self.windowButtonsLayout.addWidget(
+            self.closeButton, 0, 2, 1, 1, Qt.AlignmentFlag.AlignVCenter
+        )
 
         """
         content
@@ -692,7 +874,9 @@ class MainWindow(QMainWindow):
         self.contentLayout.addWidget(self.leftMenu, 0, 0, 2, 1)
         self.contentLayout.addWidget(self.contentPages, 0, 1, 1, 1)
         self.contentLayout.addWidget(self.bottomBar, 1, 1, 1, 1)
-        self.contentLayout.setRowStretch(0, 1) # maximally stretch contentPages down (pushing down on bottomBar)
+        self.contentLayout.setRowStretch(
+            0, 1
+        )  # maximally stretch contentPages down (pushing down on bottomBar)
         # self.contentLayout.setColumnStretch(1, 1) # stretch contentPages and bottomBar on the leftMenu
 
         """
@@ -701,7 +885,7 @@ class MainWindow(QMainWindow):
             -> helpButton
             -> settingsButton
         """
-        self.leftMenuLayout.addWidget(self.menuColumn, 0, Qt.AlignTop)
+        self.leftMenuLayout.addWidget(self.menuColumn, 0, Qt.AlignmentFlag.AlignTop)
         self.leftMenuLayout.addWidget(self.helpButton)
         self.leftMenuLayout.addWidget(self.settingsButton)
 
@@ -749,7 +933,9 @@ class MainWindow(QMainWindow):
         homePage
         """
         self.homePageLayout.addStretch(1)
-        self.homePageLayout.addWidget(self.homePageIcon, alignment=Qt.AlignHCenter)
+        self.homePageLayout.addWidget(
+            self.homePageIcon, alignment=Qt.AlignmentFlag.AlignHCenter
+        )
         self.homePageLayout.addWidget(self.homePageRow1)
         self.homePageLayout.addWidget(self.homePageRow2)
         self.homePageLayout.addWidget(self.homePageRow3)
@@ -761,19 +947,20 @@ class MainWindow(QMainWindow):
         self.emitter.terminate.connect(self.terminate)
         self.emitter.toggle_text.connect(self.toggle_run_terminate_text)
 
+
 # https://stackoverflow.com/questions/26746379/how-to-signal-slots-in-a-gui-from-a-different-process
 # https://stackoverflow.com/questions/34525750/mainwindow-object-has-no-attribute-connect
 # receives data from state process via pipe, then emits to main window in this process
 class Emitter(QObject, Thread):
-    prestige = pyqtSignal(int, object) # total, limit
-    bloodpoint = pyqtSignal(int, object) # total, limit
+    prestige = pyqtSignal(int, object)  # total, limit
+    bloodpoint = pyqtSignal(int, object)  # total, limit
     terminate = pyqtSignal()
-    toggle_text = pyqtSignal(str, bool, bool) # message, is error, hide
+    toggle_text = pyqtSignal(str, bool, bool)  # message, is error, hide
 
     def __init__(self, pipe):
         QObject.__init__(self)
         Thread.__init__(self)
-        self.daemon = True # shut down when main window is closed
+        self.daemon = True  # shut down when main window is closed
         self.pipe = pipe
 
     def emit(self, signature, args):
@@ -793,24 +980,30 @@ class Emitter(QObject, Thread):
             else:
                 self.emit(*data)
 
+
 if __name__ == "__main__":
-    freeze_support() # --onedir (for exe)
-    Config(True) # validate config
-    Runtime(True) # validate runtime settings
+    freeze_support()  # --onedir (for exe)
+    Config(True)  # validate config
+    Runtime(True)  # validate runtime settings
 
     os.environ["QT_DEVICE_PIXEL_RATIO"] = "0"
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
     os.environ["QT_SCREEN_SCALE_FACTORS"] = "1"
     os.environ["QT_SCALE_FACTOR"] = "1"
 
-    main_pipe, state_pipe = Pipe() # emit from state pipe to main pipe. main can receive, state can send
+    (
+        main_pipe,
+        state_pipe,
+    ) = Pipe()  # emit from state pipe to main pipe. main can receive, state can send
     main_emitter = Emitter(main_pipe)
 
     app = QApplication([])
     splash = QSplashScreen(QPixmap(Icons.app_splash))
     splash.show()
 
-    window = MainWindow(state_pipe, main_emitter, len(sys.argv) > 1 and "--dev" in sys.argv[1:])
+    window = MainWindow(
+        state_pipe, main_emitter, len(sys.argv) > 1 and "--dev" in sys.argv[1:]
+    )
     splash.finish(window)
     window.show()
 
@@ -828,6 +1021,6 @@ if __name__ == "__main__":
 
     @atexit.register
     def shutdown():
-        window.state.terminate() # terminate running process if main app is closed
+        window.state.terminate()  # terminate running process if main app is closed
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

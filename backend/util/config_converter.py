@@ -1,11 +1,8 @@
-import inspect
 import json
-import os
 import sys
 
 from backend.data import Data
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))))
 
 if __name__ == "__main__":
     with open("config.json" if len(sys.argv) == 1 else sys.argv[1]) as f:
@@ -19,7 +16,11 @@ if __name__ == "__main__":
                 if old_id == "id":
                     updated_profile[old_id] = v
                 else:
-                    unique_id = [unlockable.unique_id for unlockable in unlockables if unlockable.id == old_id].pop(0)
+                    unique_id = [
+                        unlockable.unique_id
+                        for unlockable in unlockables
+                        if unlockable.id == old_id
+                    ].pop(0)
                     updated_profile[unique_id] = v
             updated_profiles.append(updated_profile)
         config["profiles"] = updated_profiles
