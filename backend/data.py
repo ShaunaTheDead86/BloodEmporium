@@ -50,8 +50,8 @@ class Data:
     try:
         __connection = sqlite3.connect(Path.assets_database)
         print("connected to database")
-    except:
-        print(f"error")
+    except Exception:
+        print("error")
 
     __cursor = __connection.cursor()
     __cursor.execute(
@@ -63,7 +63,7 @@ class Data:
     __killers_rows = __cursor.fetchall()
 
     __connection.close()
-    print("disconnected from database")
+    print("disconnected from backend.database")
 
     @staticmethod
     def get_icons():
@@ -267,7 +267,7 @@ class Data:
             def sort(widget):
                 try:
                     return widget.getTiers()
-                except:
+                except Exception:
                     return 1000, 1000
 
             sorted_widgets.sort(key=sort, reverse=True)

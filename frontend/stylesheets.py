@@ -259,7 +259,11 @@ class StyleSheets:
         except ValueError:
             return StyleSheets.text_box_invalid
 
-        return StyleSheets.text_box_invalid if bloodpoint_limit <= 0 else StyleSheets.text_box
+        return (
+            StyleSheets.text_box_invalid
+            if bloodpoint_limit <= 0
+            else StyleSheets.text_box
+        )
 
     @staticmethod
     def tiers_input(tier):
@@ -279,7 +283,11 @@ class StyleSheets:
 
     @staticmethod
     def settings_input(path):
-        return StyleSheets.text_box if os.path.isdir(path) else StyleSheets.text_box_invalid
+        return (
+            StyleSheets.text_box
+            if os.path.isdir(path)
+            else StyleSheets.text_box_invalid
+        )
 
     @staticmethod
     def left_menu_button_inactive(padding):

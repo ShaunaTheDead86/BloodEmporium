@@ -328,7 +328,7 @@ Type: {TextUtil.title_case(unlockable.type)}"""
                 icon = Image.open(self.unlockable.image_path)
                 combined = Image.alpha_composite(bg, icon)
                 self.image.setPixmap(QPixmap.fromImage(ImageQt.ImageQt(combined)))
-            except:
+            except Exception:
                 print(f"error adding background to {self.unlockable.unique_id}")
                 self.image.setPixmap(QPixmap(self.unlockable.image_path))
 
@@ -668,7 +668,7 @@ class PreferencesPage(QWidget):
                             return
 
                     Config().add_profile(profile)
-            except:
+            except Exception:
                 self.show_preferences_page_save_error(
                     f"Profile file ({path}) malformed."
                 )

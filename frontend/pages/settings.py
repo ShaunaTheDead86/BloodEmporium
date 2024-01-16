@@ -1,6 +1,6 @@
 from PyQt6.QtCore import QSize, QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFileDialog, QGridLayout
-from pynput import keyboard, mouse
+from pynput import keyboard
 
 from frontend.generic import (
     Font,

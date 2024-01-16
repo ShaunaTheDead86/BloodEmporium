@@ -1,5 +1,3 @@
-"""
-frontend
-"""
+from frontend import dialogs, generic, layouts, stylesheets, pages
 
-__all__ = ["pages", "dialogs", "generic", "layouts", "stylesheets"]
+__all__ = [dialogs, generic, layouts, stylesheets, pages]

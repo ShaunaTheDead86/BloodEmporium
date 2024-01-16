@@ -204,12 +204,12 @@ class BloodwebPage(QWidget):
             Config().profile_names(),
         )
         index = self.profileSelector.findText(runtime.profile())
-        set_profile = lambda: Runtime().set_profile(self.profileSelector.currentText())
         if index != -1:
             self.profileSelector.setCurrentIndex(index)
         else:
-            set_profile()
-        self.profileSelector.currentIndexChanged.connect(set_profile)
+            self.profileSelector.currentIndexChanged.connect(
+                Runtime().set_profile(self.profileSelector.currentText())
+            )
 
         self.characterLabel = TextLabel(
             self, "bloodwebPageCharacterLabel", "Character", Font(12)

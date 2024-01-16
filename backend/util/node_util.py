@@ -13,7 +13,14 @@ class NodeType:
     MULTI_UNCLAIMED = [ACCESSIBLE, INACCESSIBLE]
     MULTI_ORIGIN_AUTO = [ORIGIN_AUTO_ENABLED, ORIGIN_AUTO_DISABLED]
     MULTI_ORIGIN = [ORIGIN, ORIGIN_AUTO_ENABLED, ORIGIN_AUTO_DISABLED]
-    MULTI_CLAIMABLE = [ACCESSIBLE, INACCESSIBLE, PRESTIGE, ORIGIN_AUTO_ENABLED, ORIGIN_AUTO_DISABLED]
+    MULTI_CLAIMABLE = [
+        ACCESSIBLE,
+        INACCESSIBLE,
+        PRESTIGE,
+        ORIGIN_AUTO_ENABLED,
+        ORIGIN_AUTO_DISABLED,
+    ]
+
 
 class ColorUtil:
     red_hex = "#C80A0A"
@@ -30,21 +37,43 @@ class ColorUtil:
 
     @staticmethod
     def hex_from_cls_name(cls_name):
-        return ColorUtil.red_hex if cls_name in [NodeType.BLOODPOINTS, NodeType.PRESTIGE, NodeType.ORIGIN,
-                                                 NodeType.ORIGIN_AUTO_ENABLED, NodeType.ORIGIN_AUTO_DISABLED,
-                                                 NodeType.CLAIMED] else \
-            ColorUtil.taupe_hex if cls_name == NodeType.ACCESSIBLE else \
-            ColorUtil.neutral_hex if cls_name == NodeType.INACCESSIBLE else \
-            ColorUtil.black_hex
+        return (
+            ColorUtil.red_hex
+            if cls_name
+            in [
+                NodeType.BLOODPOINTS,
+                NodeType.PRESTIGE,
+                NodeType.ORIGIN,
+                NodeType.ORIGIN_AUTO_ENABLED,
+                NodeType.ORIGIN_AUTO_DISABLED,
+                NodeType.CLAIMED,
+            ]
+            else ColorUtil.taupe_hex
+            if cls_name == NodeType.ACCESSIBLE
+            else ColorUtil.neutral_hex
+            if cls_name == NodeType.INACCESSIBLE
+            else ColorUtil.black_hex
+        )
 
     @staticmethod
     def rgb_from_cls_name(cls_name):
-        return ColorUtil.red_rgb if cls_name in [NodeType.BLOODPOINTS, NodeType.PRESTIGE, NodeType.ORIGIN,
-                                                 NodeType.ORIGIN_AUTO_ENABLED, NodeType.ORIGIN_AUTO_DISABLED,
-                                                 NodeType.CLAIMED] else \
-            ColorUtil.taupe_rgb if cls_name == NodeType.ACCESSIBLE else \
-            ColorUtil.neutral_rgb if cls_name == NodeType.INACCESSIBLE else \
-            ColorUtil.black_rgb
+        return (
+            ColorUtil.red_rgb
+            if cls_name
+            in [
+                NodeType.BLOODPOINTS,
+                NodeType.PRESTIGE,
+                NodeType.ORIGIN,
+                NodeType.ORIGIN_AUTO_ENABLED,
+                NodeType.ORIGIN_AUTO_DISABLED,
+                NodeType.CLAIMED,
+            ]
+            else ColorUtil.taupe_rgb
+            if cls_name == NodeType.ACCESSIBLE
+            else ColorUtil.neutral_rgb
+            if cls_name == NodeType.INACCESSIBLE
+            else ColorUtil.black_rgb
+        )
 
     @staticmethod
     def bgr_from_cls_name(cls_name):

@@ -4,7 +4,11 @@ import math
 class TextUtil:
     @staticmethod
     def camel_case(text: str):
-        text2 = "".join([i for i in text if i.isalpha() or i == " "]).title().replace(" ", "")
+        text2 = (
+            "".join([i for i in text if i.isalpha() or i == " "])
+            .title()
+            .replace(" ", "")
+        )
         return text2[0].lower() + text2[1:]
 
     @staticmethod
@@ -21,7 +25,7 @@ class TextUtil:
         return key_string
 
     @staticmethod
-    def justify(initial_pad, objs): # objs: list of lists
+    def justify(initial_pad, objs):  # objs: list of lists
         maxes = {}
         for obj in objs:
             for i, attr in enumerate(obj):

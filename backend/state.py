@@ -835,7 +835,7 @@ class StateProcess(Process):
 
                         update_iteration += 1
                     bloodweb_iteration += 1
-        except:
+        except Exception:
             traceback.print_exc()
             self.emit("terminate")
             self.emit(

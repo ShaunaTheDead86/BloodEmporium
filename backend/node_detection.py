@@ -26,7 +26,7 @@ pytesseract.pytesseract.tesseract_cmd = os.getcwd() + r"\tesseract\tesseract.exe
 class NodeDetection:
     def __init__(self):
         # loads model on init
-        self.model = YOLO("models/nodes v4.pt")
+        self.model = YOLO("assets/models/nodes v4.pt")
         self.model.fuse()
 
         # gets custom names from custom model

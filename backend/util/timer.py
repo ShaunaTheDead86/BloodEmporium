@@ -11,4 +11,6 @@ class Timer:
     def update(self):
         self.timers.append(time.time())
         if Timer.PRINT:
-            print(f"timer for {self.descriptor} | {round(1000 * (self.timers[-1] - self.timers[-2]), 1)}ms")
+            print(
+                f"timer for {self.descriptor} | {round(1000 * (self.timers[-1] - self.timers[-2]), 1)}ms"
+            )

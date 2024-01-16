@@ -63,10 +63,15 @@ class HyperlinkTextLabel(QLabel):
         self.setOpenExternalLinks(True)
 
 
-class TextInputBox(QLineEdit):
-    on_focus_in_callback = lambda: None
-    on_focus_out_callback = lambda: None
+def on_focus_in_callback(self):
+    return None
 
+
+def on_focus_out_callback(self):
+    return None
+
+
+class TextInputBox(QLineEdit):
     def __init__(
         self,
         parent,
@@ -334,7 +339,7 @@ class HotkeyInput(QPushButton):
         self.setText(" + ".join([TextUtil.title_case(k) for k in self.pressed_keys]))
 
     def on_key_up(self, key):
-        new_key = TextUtil.pynput_to_key_string(self.hotkey_listener, key)
+        new_key = TextUtil.pynput_to_key_string(self.listener, key)
         key = new_key if new_key else str(key).replace("Key.", "")
         self.setText(" + ".join([TextUtil.title_case(k) for k in self.pressed_keys]))
 

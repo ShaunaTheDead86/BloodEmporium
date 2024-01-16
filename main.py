@@ -1,6 +1,7 @@
 import atexit
 import os
 import sys
+
 from multiprocessing import freeze_support, Pipe
 from threading import Thread
 from typing import Tuple
@@ -32,19 +33,8 @@ from PyQt6.QtWidgets import (
     QSplashScreen,
 )
 
-from frontend.dialogs import UpdateDialog
-from frontend.generic import Font, TextLabel, HyperlinkTextLabel, TextInputBox, Icons
-from frontend.layouts import RowLayout
-from frontend.pages.bloodweb import BloodwebPage
-from frontend.pages.help import HelpPage
-from frontend.pages.preferences import PreferencesPage
-from frontend.pages.settings import SettingsPage
-from frontend.stylesheets import StyleSheets
-
-from backend.config import Config
-from backend.runtime import Runtime
-from backend.state import State
-from backend.updater import Updater, get_latest_update
+import frontend
+import backend
 
 
 class TopBar(QFrame):
@@ -53,7 +43,7 @@ class TopBar(QFrame):
         self.setObjectName("topBar")
         self.setMinimumSize(QSize(300, 60))
         self.setStyleSheet(
-            f"QFrame#topBar {{background-color: {StyleSheets.background};}}"
+            f"QFrame#topBar {{background-color: {frontend.stylesheets.StyleSheets.background};}}"
         )
 
 
@@ -64,7 +54,7 @@ class TopBarButton(QPushButton):
         object_name,
         icon,
         on_click,
-        style_sheet=StyleSheets.top_bar_button,
+        style_sheet=frontend.stylesheets.StyleSheets.top_bar_button,
     ):
         super().__init__(parent)
         self.setObjectName(object_name)
@@ -117,7 +107,9 @@ class LeftMenuButton(QPushButton):
 
         self.is_active = is_active
         self.setStyleSheet(
-            StyleSheets.left_menu_button(LeftMenuButton.padding, is_active)
+            frontend.stylesheets.StyleSheets.left_menu_button(
+                LeftMenuButton.padding, is_active
+            )
         )
 
         self.clicked.connect(self.on_click)
@@ -130,14 +122,20 @@ class LeftMenuButton(QPushButton):
 
     def activate(self):
         self.is_active = True
-        self.setStyleSheet(StyleSheets.left_menu_button_active(LeftMenuButton.padding))
+        self.setStyleSheet(
+            frontend.stylesheets.StyleSheets.left_menu_button_active(
+                LeftMenuButton.padding
+            )
+        )
         self.bar.activate()
         self.main.stack.setCurrentWidget(self.page)
 
     def deactivate(self):
         self.is_active = False
         self.setStyleSheet(
-            StyleSheets.left_menu_button_inactive(LeftMenuButton.padding)
+            frontend.stylesheets.StyleSheets.left_menu_button_inactive(
+                LeftMenuButton.padding
+            )
         )
         self.bar.deactivate()
 
@@ -154,7 +152,7 @@ class LeftMenuBar(QFrame):
         self.setObjectName(object_name)
         self.setFixedSize(3, 60)
         self.setStyleSheet(
-            f"QFrame#{object_name} {{background-color: {StyleSheets.purple};}}"
+            f"QFrame#{object_name} {{background-color: {frontend.stylesheets.StyleSheets.purple};}}"
         )
         self.setVisible(visible)
 
@@ -166,10 +164,16 @@ class LeftMenuBar(QFrame):
 
 
 class LeftMenuLabel(QLabel):
-    def __init__(self, parent, object_name, text, style_sheet=StyleSheets.white_text):
+    def __init__(
+        self,
+        parent,
+        object_name,
+        text,
+        style_sheet=frontend.stylesheets.StyleSheets.white_text,
+    ):
         super().__init__(parent)
         self.setObjectName(object_name)
-        self.setFont(Font(8))
+        self.font().setPointSize(8)
         self.setFixedHeight(60)
         self.setText(text)
         self.setStyleSheet(style_sheet)
@@ -183,9 +187,11 @@ class HomeRow(QWidget):
         super().__init__(parent)
         self.setObjectName(f"homePageRow{object_number}")
         self.button = PageButton(self, f"homePageButton{object_number}", icon, on_click)
-        self.label = TextLabel(self, f"homePageLabel{object_number}", text)
+        self.label = frontend.generic.TextLabel(
+            self, f"homePageLabel{object_number}", text
+        )
 
-        self.layout = RowLayout(self, "homePageLayout", spacing=0)
+        self.layout = frontend.layouts.RowLayout(self, "homePageLayout", spacing=0)
         self.layout.addStretch(1)
         self.layout.addWidget(self.button)
         self.layout.addWidget(self.label)
@@ -203,9 +209,11 @@ class HelpRow(QWidget):
         self.icon.setPixmap(QPixmap(icon_path))
         self.icon.setScaledContents(True)
 
-        self.label = TextLabel(self, f"{object_name}Label", text)
+        self.label = frontend.generic.TextLabel(self, f"{object_name}Label", text)
 
-        self.layout = RowLayout(self, f"{object_name}Layout", spacing=0)
+        self.layout = frontend.layouts.RowLayout(
+            self, f"{object_name}Layout", spacing=0
+        )
         self.layout.addWidget(self.icon)
         self.layout.addWidget(self.label)
         self.layout.addStretch(1)
@@ -228,7 +236,7 @@ class PageButton(QPushButton):
         self.setIconSize(QSize(30, 30))
         self.setIcon(icon)
 
-        self.setStyleSheet(StyleSheets.page_button)
+        self.setStyleSheet(frontend.stylesheets.StyleSheets.page_button)
 
         self.clicked.connect(on_click)
 
@@ -295,14 +303,14 @@ class MainWindow(QMainWindow):
     def restore(self):
         self.showNormal()
         self.is_maximized = False
-        self.maximizeButton.setIcon(QIcon(Icons.maximize))
+        self.maximizeButton.setIcon(QIcon(frontend.generic.Icons.maximize))
         self.centralLayout.setContentsMargins(10, 10, 10, 10)
         self.set_grip_size(10)
 
     def maximize(self):
         self.showMaximized()
         self.is_maximized = True
-        self.maximizeButton.setIcon(QIcon(Icons.restore))
+        self.maximizeButton.setIcon(QIcon(frontend.generic.Icons.restore))
         self.centralLayout.setContentsMargins(0, 0, 0, 0)
         self.set_grip_size(0)
 
@@ -373,7 +381,7 @@ class MainWindow(QMainWindow):
                 tier, subtier = threshold
                 try:
                     tier = int(tier)
-                except:
+                except Exception:
                     return self.bloodwebPage.show_run_error(
                         "Threshold tier must be an integer from -999 to 999.", True
                     )
@@ -384,7 +392,7 @@ class MainWindow(QMainWindow):
 
                 try:
                     subtier = int(subtier)
-                except:
+                except Exception:
                     return self.bloodwebPage.show_run_error(
                         "Threshold subtier must be an integer from -999 to 999.", True
                     )
@@ -398,7 +406,7 @@ class MainWindow(QMainWindow):
             if prestige_limit is not None:
                 try:
                     prestige_limit = int(prestige_limit)
-                except:
+                except Exception:
                     return self.bloodwebPage.show_run_error(
                         "Prestige level must be an integer from 1 to 100.", True
                     )
@@ -411,7 +419,7 @@ class MainWindow(QMainWindow):
             if bp_limit is not None:
                 try:
                     bp_limit = int(bp_limit)
-                except:
+                except Exception:
                     return self.bloodwebPage.show_run_error(
                         "Bloodpoint limit must be a positive integer.", True
                     )
@@ -509,7 +517,7 @@ class MainWindow(QMainWindow):
     def __init__(self, state_pipe_, emitter, dev_mode):
         super().__init__()
         self.is_maximized = False
-        self.state = State(state_pipe_)
+        self.state = backend.state.State(state_pipe_)
 
         self.emitter = emitter
         self.emitter.start()  # start the thread, calling Emitter.run()
@@ -521,7 +529,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1100, 600)
         self.resize(1570, 870)
         self.setWindowTitle("Blood Emporium")
-        self.setWindowIcon(QIcon(Icons.icon))
+        self.setWindowIcon(QIcon(frontend.generic.Icons.icon))
 
         self.__grip_size = 10
         self.side_grips = [
@@ -551,7 +559,7 @@ class MainWindow(QMainWindow):
         self.background.setStyleSheet(
             f"""
             QFrame#background {{
-                background-color: {StyleSheets.passive};
+                background-color: {frontend.stylesheets.StyleSheets.passive};
             }}"""
         )
         self.shadow = QGraphicsDropShadowEffect(self)
@@ -577,7 +585,7 @@ class MainWindow(QMainWindow):
         self.icon = QLabel(self.topBar)
         self.icon.setObjectName("icon")
         self.icon.setFixedSize(QSize(60, 60))
-        self.icon.setPixmap(QPixmap(os.getcwd() + "/" + Icons.icon))
+        self.icon.setPixmap(QPixmap(os.getcwd() + "/" + frontend.generic.Icons.icon))
         self.icon.setScaledContents(True)
 
         # title bar
@@ -589,7 +597,9 @@ class MainWindow(QMainWindow):
         self.titleBarLayout.setSpacing(0)
 
         # title label
-        self.titleLabel = TextLabel(self.titleBar, "titleLabel", "Blood Emporium")
+        self.titleLabel = frontend.generic.TextLabel(
+            self.titleBar, "titleLabel", "Blood Emporium"
+        )
 
         # window buttons
         self.windowButtons = QWidget(self.topBar)
@@ -602,16 +612,24 @@ class MainWindow(QMainWindow):
         self.windowButtonsLayout.setSpacing(0)
 
         self.minimizeButton = TopBarButton(
-            self.windowButtons, "minimizeButton", QIcon(Icons.minimize), self.minimize
+            self.windowButtons,
+            "minimizeButton",
+            QIcon(frontend.generic.Icons.minimize),
+            self.minimize,
         )
         self.maximizeButton = TopBarButton(
             self.windowButtons,
             "maximizeButton",
-            QIcon(Icons.restore) if self.is_maximized else QIcon(Icons.maximize),
+            QIcon(frontend.generic.Icons.restore)
+            if self.is_maximized
+            else QIcon(frontend.generic.Icons.maximize),
             self.maximize_restore,
         )
         self.closeButton = TopBarButton(
-            self.windowButtons, "closeButton", QIcon(Icons.close), self.close
+            self.windowButtons,
+            "closeButton",
+            QIcon(frontend.generic.Icons.close),
+            self.close,
         )
 
         # content
@@ -631,7 +649,7 @@ class MainWindow(QMainWindow):
         self.leftMenu.setStyleSheet(
             f"""
             QFrame#leftMenu {{
-                background-color: {StyleSheets.background};
+                background-color: {frontend.stylesheets.StyleSheets.background};
             }}"""
         )
 
@@ -650,21 +668,31 @@ class MainWindow(QMainWindow):
         self.menuColumnLayout.setSpacing(0)
 
         self.toggleButton = ToggleButton(
-            self.leftMenu, "toggleButton", QIcon(Icons.menu), self, self.animate
+            self.leftMenu,
+            "toggleButton",
+            QIcon(frontend.generic.Icons.menu),
+            self,
+            self.animate,
         )
         self.toggleLabel = LeftMenuLabel(
-            self.toggleButton, "toggleLabel", "Hide", f"color: {StyleSheets.purple};"
+            self.toggleButton,
+            "toggleLabel",
+            "Hide",
+            f"color: {frontend.stylesheets.StyleSheets.purple};",
         )
 
         self.homeButton = LeftMenuButton(
-            self.leftMenu, "homeButton", QIcon(Icons.home), self, True
+            self.leftMenu, "homeButton", QIcon(frontend.generic.Icons.home), self, True
         )
         self.homeLabel = LeftMenuLabel(self.homeButton, "homeLabel", "Home")
         self.homeBar = LeftMenuBar(self.homeButton, "homeBar", True)
         self.homeButton.setBar(self.homeBar)
 
         self.preferencesButton = LeftMenuButton(
-            self.leftMenu, "preferencesButton", QIcon(Icons.preferences), self
+            self.leftMenu,
+            "preferencesButton",
+            QIcon(frontend.generic.Icons.preferences),
+            self,
         )
         self.preferencesLabel = LeftMenuLabel(
             self.preferencesButton, "preferencesLabel", "Preference Profiles"
@@ -673,7 +701,10 @@ class MainWindow(QMainWindow):
         self.preferencesButton.setBar(self.preferencesBar)
 
         self.bloodwebButton = LeftMenuButton(
-            self.leftMenu, "bloodwebButton", QIcon(Icons.bloodweb), self
+            self.leftMenu,
+            "bloodwebButton",
+            QIcon(frontend.generic.Icons.bloodweb),
+            self,
         )
         self.bloodwebLabel = LeftMenuLabel(self.bloodwebButton, "bloodwebLabel", "Run")
         self.bloodwebBar = LeftMenuBar(self.bloodwebButton, "bloodwebBar")
@@ -681,7 +712,7 @@ class MainWindow(QMainWindow):
 
         # help button
         self.helpButton = LeftMenuButton(
-            self.menuColumn, "helpButton", QIcon(Icons.help), self
+            self.menuColumn, "helpButton", QIcon(frontend.generic.Icons.help), self
         )
         self.helpLabel = LeftMenuLabel(self.helpButton, "helpLabel", "Help & Contact")
         self.helpBar = LeftMenuBar(self.helpButton, "helpBar")
@@ -689,7 +720,10 @@ class MainWindow(QMainWindow):
 
         # settings button
         self.settingsButton = LeftMenuButton(
-            self.menuColumn, "settingsButton", QIcon(Icons.settings), self
+            self.menuColumn,
+            "settingsButton",
+            QIcon(frontend.generic.Icons.settings),
+            self,
         )
         self.settingsLabel = LeftMenuLabel(
             self.settingsButton, "settingsLabel", "Settings"
@@ -732,56 +766,66 @@ class MainWindow(QMainWindow):
         self.homePageIcon = QLabel(self.homePage)
         self.homePageIcon.setObjectName("homePageIcon")
         self.homePageIcon.setFixedSize(QSize(200, 200))
-        self.homePageIcon.setPixmap(QPixmap(os.getcwd() + "/" + Icons.icon))
+        self.homePageIcon.setPixmap(
+            QPixmap(os.getcwd() + "/" + frontend.generic.Icons.icon)
+        )
         self.homePageIcon.setScaledContents(True)
 
         self.homePageRow1 = HomeRow(
             self.homePage,
             1,
-            QIcon(Icons.settings),
+            QIcon(frontend.generic.Icons.settings),
             self.settingsButton.on_click,
             "Using a custom icon pack? Set up your settings.",
         )
         self.homePageRow2 = HomeRow(
             self.homePage,
             2,
-            QIcon(Icons.preferences),
+            QIcon(frontend.generic.Icons.preferences),
             self.preferencesButton.on_click,
             "What would you like from the bloodweb? Set up your preferences.",
         )
         self.homePageRow3 = HomeRow(
             self.homePage,
             3,
-            QIcon(Icons.bloodweb),
+            QIcon(frontend.generic.Icons.bloodweb),
             self.bloodwebButton.on_click,
             "Ready? Start clearing your bloodweb (with optional spending limits)!",
         )
         self.homePageRow4 = HomeRow(
             self.homePage,
             4,
-            QIcon(Icons.help),
+            QIcon(frontend.generic.Icons.help),
             self.helpButton.on_click,
             "Instructions & contact details here.",
         )
 
         # stack: bloodwebPage
-        self.bloodwebPage = BloodwebPage(dev_mode)
+        self.bloodwebPage = frontend.pages.bloodweb.BloodwebPage(dev_mode)
         self.bloodwebButton.setPage(self.bloodwebPage)
         self.bloodwebPage.runButton.clicked.connect(self.run_terminate)
 
         # stack: preferencesPage
-        self.preferencesPage = PreferencesPage(self.bloodwebPage)
+        self.preferencesPage = frontend.pages.preferences.PreferencesPage(
+            self.bloodwebPage
+        )
         self.preferencesButton.setPage(self.preferencesPage)
 
         # stack: helpPage
-        self.helpPage = HelpPage()
+        self.helpPage = frontend.pages.help.HelpPage()
         self.helpButton.setPage(self.helpPage)
 
         # stack: settingsPage
-        self.settingsPage = SettingsPage(self.run_terminate, self.bloodwebPage)
+        self.settingsPage = frontend.pages.settings.SettingsPage(
+            self.run_terminate, self.bloodwebPage
+        )
         self.settingsButton.setPage(self.settingsPage)
-        TextInputBox.on_focus_in_callback = self.settingsPage.stop_hotkey_listener
-        TextInputBox.on_focus_out_callback = self.settingsPage.start_hotkey_listener
+        frontend.generic.TextInputBox.on_focus_in_callback = (
+            self.settingsPage.stop_hotkey_listener
+        )
+        frontend.generic.TextInputBox.on_focus_out_callback = (
+            self.settingsPage.start_hotkey_listener
+        )
         self.settingsPage.start_hotkey_listener()
 
         # bottom bar
@@ -791,22 +835,27 @@ class MainWindow(QMainWindow):
         self.bottomBar.setStyleSheet(
             f"""
             QFrame#bottomBar {{
-                background-color: {StyleSheets.selection};
+                background-color: {frontend.stylesheets.StyleSheets.selection};
             }}"""
         )
 
-        self.bottomBarLayout = RowLayout(self.bottomBar, "bottomBarLayout")
+        self.bottomBarLayout = frontend.layouts.RowLayout(
+            self.bottomBar, "bottomBarLayout"
+        )
         self.bottomBarLayout.setContentsMargins(10, 0, 10, 0)
 
-        self.authorLabel = HyperlinkTextLabel(
+        self.authorLabel = frontend.generic.HyperlinkTextLabel(
             self.bottomBar,
             "authorLabel",
             "Made by IIInitiationnn",
             "https://github.com/IIInitiationnn/BloodEmporium",
-            Font(8),
+            frontend.generic.Font(8),
         )
-        self.versionLabel = TextLabel(
-            self.bottomBar, "versionLabel", State.version, Font(8)
+        self.versionLabel = frontend.generic.TextLabel(
+            self.bottomBar,
+            "versionLabel",
+            backend.state.State.version,
+            frontend.generic.Font(8),
         )
 
         """
@@ -950,7 +999,7 @@ class MainWindow(QMainWindow):
 
 # https://stackoverflow.com/questions/26746379/how-to-signal-slots-in-a-gui-from-a-different-process
 # https://stackoverflow.com/questions/34525750/mainwindow-object-has-no-attribute-connect
-# receives data from state process via pipe, then emits to main window in this process
+# receives data from backend.state process via pipe, then emits to main window in this process
 class Emitter(QObject, Thread):
     prestige = pyqtSignal(int, object)  # total, limit
     bloodpoint = pyqtSignal(int, object)  # total, limit
@@ -983,8 +1032,8 @@ class Emitter(QObject, Thread):
 
 if __name__ == "__main__":
     freeze_support()  # --onedir (for exe)
-    Config(True)  # validate config
-    Runtime(True)  # validate runtime settings
+    backend.config.Config(True)  # validate config
+    backend.runtime.Runtime(True)  # validate runtime settings
 
     os.environ["QT_DEVICE_PIXEL_RATIO"] = "0"
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
@@ -994,11 +1043,13 @@ if __name__ == "__main__":
     (
         main_pipe,
         state_pipe,
-    ) = Pipe()  # emit from state pipe to main pipe. main can receive, state can send
+    ) = (
+        Pipe()
+    )  # emit from backend.state pipe to main pipe. main can receive, state can send
     main_emitter = Emitter(main_pipe)
 
     app = QApplication([])
-    splash = QSplashScreen(QPixmap(Icons.app_splash))
+    splash = QSplashScreen(QPixmap(frontend.generic.Icons.app_splash))
     splash.show()
 
     window = MainWindow(
@@ -1009,14 +1060,16 @@ if __name__ == "__main__":
 
     # auto update
     try:
-        try_update = get_latest_update()
+        try_update = backend.updater.get_latest_update()
     except Exception:
         try_update = None
     if try_update is not None:
-        dialog = UpdateDialog(State.version, try_update["tag_name"])
+        dialog = frontend.dialogs.UpdateDialog(
+            backend.state.State.version, try_update["tag_name"]
+        )
         selection = dialog.exec()
         if selection == QMessageBox.AcceptRole:
-            Updater().run()
+            backend.updater.Updater().run()
             sys.exit()
 
     @atexit.register
