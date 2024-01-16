@@ -850,7 +850,7 @@ class StateProcess(Process):
 
 
 class State:
-    version = "v1.2.2"
+    version = "v1.2.3"
 
     def __init__(self, pipe):
         self.process = None
