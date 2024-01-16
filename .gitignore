@@ -31,6 +31,6 @@ investigate/
 references/
 yolov5_obb/
 tesseract/
-build
-dist
-.venv
+.venv/
+build/
+dist/
