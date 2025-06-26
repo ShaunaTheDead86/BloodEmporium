@@ -184,6 +184,41 @@ class StyleSheets:
             border: none;
         }}"""
 
+    multiline_text_box_read_only = f"""
+        QPlainTextEdit {{
+            background-color: {background};
+            color: rgb(125, 125, 125);
+            border-radius: 5px;
+            border: 2px solid rgba(0, 0, 0, 0);
+            padding: 10px 10px 0 10px;
+            selection-background-color: {purple};
+        }}
+
+        QPlainTextEdit:hover {{
+            border: 2px solid {selection};
+        }}
+
+        QScrollBar:vertical {{
+            background: {selection};
+            width: 4px;
+            border: 0px solid white;
+            margin: 10px 0 10px 0;
+            border-radius: 4px;
+        }}
+
+        QScrollBar::handle:vertical {{
+            background: {purple};
+            border-radius: 2px;
+        }}
+
+        QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical, QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+            background: none;
+        }}
+
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+            border: none;
+        }}"""
+
     tiers_input_positive = f"""
         QLineEdit {{
             background-color: #323543;
@@ -198,10 +233,38 @@ class StyleSheets:
             border: 2px solid {selection};
         }}"""
 
+    tiers_input_positive_read_only = f"""
+        QLineEdit {{
+            background-color: #323543;
+            color: rgb(125, 125, 125);
+            border-radius: 5px;
+            border: 2px solid rgba(0, 0, 0, 0);
+            padding: 0 10px 0 10px;
+            selection-background-color: {purple};
+        }}
+        
+        QLineEdit:hover {{
+            border: 2px solid {selection};
+        }}"""
+
     tiers_input_negative = f"""
         QLineEdit {{
             background-color: #1e1f29;
             color: rgb(255, 255, 255);
+            border-radius: 5px;
+            border: 2px solid rgba(0, 0, 0, 0);
+            padding: 0 10px 0 10px;
+            selection-background-color: {purple};
+        }}
+        
+        QLineEdit:hover {{
+            border: 2px solid {selection};
+        }}"""
+
+    tiers_input_negative_read_only = f"""
+        QLineEdit {{
+            background-color: #1e1f29;
+            color: rgb(125, 125, 125);
             border-radius: 5px;
             border: 2px solid rgba(0, 0, 0, 0);
             padding: 0 10px 0 10px;
@@ -262,7 +325,7 @@ class StyleSheets:
         return StyleSheets.text_box_invalid if bloodpoint_limit <= 0 else StyleSheets.text_box
 
     @staticmethod
-    def tiers_input(tier):
+    def tiers_input(tier, read_only=False):
         try:
             tier = int(tier)
         except ValueError:
@@ -271,11 +334,11 @@ class StyleSheets:
         if abs(tier) > 999:
             return StyleSheets.text_box_invalid
         elif tier > 0:
-            return StyleSheets.tiers_input_positive
+            return StyleSheets.tiers_input_negative_read_only if read_only else StyleSheets.tiers_input_positive
         elif tier < 0:
-            return StyleSheets.tiers_input_negative
+            return StyleSheets.tiers_input_negative_read_only if read_only else StyleSheets.tiers_input_negative
         else:
-            return StyleSheets.text_box
+            return StyleSheets.text_box_read_only if read_only else StyleSheets.text_box
 
     @staticmethod
     def settings_input(path):
@@ -403,6 +466,17 @@ class StyleSheets:
             border: none;
         }}"""
 
+    text_only_button = f"""
+        QPushButton {{
+            color: rgb(255, 255, 255);
+            background-color: transparent;
+            border: none;
+        }}
+        QPushButton:hover {{
+            color: {purple};
+            border: none;
+        }}"""
+
     button = f"""
         QPushButton {{
             color: rgb(255, 255, 255);
@@ -417,6 +491,9 @@ class StyleSheets:
         QPushButton:pressed {{
             background-color: {light_selection};
             border: none;
+        }}
+        QPushButton:disabled {{
+            color: {selection};
         }}"""
 
     button_recording = f"""

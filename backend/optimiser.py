@@ -132,7 +132,13 @@ class Optimiser:
             elif data["value"] == min_val:
                 min_node_ids.append(node_id)
         timer.update()
-        return GraphNode.from_dict(self.dijkstra_graph.nodes[random.choice(min_node_ids)])
+
+        # if the edges are connected incorrectly and we are in fast mode, then the neighbour update in update_guess
+        # may not actually update the correct neighbours to become accessible, leaving everything inaccessible
+        # causing the choice to be None; this will cause a runtime error, so instead we return None so we can
+        # continue runtime by forcing a new level instead
+        choice = random.choice(min_node_ids)
+        return None if choice is None else GraphNode.from_dict(self.base_graph.nodes[choice])
 
     def select_best_multi(self, unlockables: List[Unlockable]) -> List[GraphNode]:
         timer = Timer("select_best_multi")
@@ -200,15 +206,15 @@ class Optimiser:
             elif path_opt_val == min_val:
                 min_paths.append(path)
         timer.update()
-        return [GraphNode.from_dict(self.dijkstra_graph.nodes[node]) for node in random.choice(min_paths)]
+        return [GraphNode.from_dict(self.base_graph.nodes[node]) for node in random.choice(min_paths)]
 
-    def run(self, profile_id):
+    def run(self, profile_id, bundled):
         config = Config()
         graphs = []
         for node_id, data in self.base_graph.nodes.items():
             if data["cls_name"] not in NodeType.MULTI_UNCLAIMED:
                 continue
-            tier, subtier = config.preference_by_id(data["name"], profile_id)
+            tier, subtier = config.preference_by_id(data["name"], profile_id, bundled)
             if tier > 0 or (tier == 0 and subtier > 0): # desirable and unclaimed
                 graphs.append(self.dijkstra_multiplier(node_id, tier, subtier))
             elif tier < 0 or (tier == 0 and subtier < 0): # undesirable and unclaimed
@@ -223,7 +229,7 @@ class Optimiser:
 
         self.dijkstra_graph = self.add_graphs(graphs)
 
-    def can_auto_purchase(self, profile_id, threshold_tier=None, threshold_subtier=None):
+    def can_auto_purchase(self, profile_id, bundled, threshold_tier=None, threshold_subtier=None):
         # two ways to auto-purchase
         # A: all tiers and subtiers of all items are the same
         # B: all tiers and subtiers fall below threshold (if threshold is enabled)
@@ -231,12 +237,18 @@ class Optimiser:
 
         config = Config()
         tiers, subtiers = set(), set()
+        highest = None # tier, subtier of highest (tier 2 subtier -999 is higher than tier 1 subtier 999)
+        # alternatively can also just use Optimiser.TIER_VALUE * tier + Optimiser.SUBTIER_VALUE * subtier and sort
         for data in self.base_graph.nodes.values():
             if data["cls_name"] not in NodeType.MULTI_UNCLAIMED:
                 continue
-            tier, subtier = config.preference_by_id(data["name"], profile_id)
+            tier, subtier = config.preference_by_id(data["name"], profile_id, bundled)
             tiers.add(tier)
             subtiers.add(subtier)
+            if highest is None or \
+                (tier > highest[0]) or \
+                (tier == highest[0] and subtier > highest[1]):
+                highest = (tier, subtier)
 
         # A
         if len(tiers) == 1 and len(subtiers) == 1:
@@ -245,4 +257,8 @@ class Optimiser:
             return False
 
         # B
-        return max(tiers) < threshold_tier and max(subtiers) < threshold_subtier
+        # return max(tiers) < threshold_tier and max(subtiers) < threshold_subtier
+        # ^this doesnt work: tier 2 subtier -999 is higher than tier 1 subtier 999 so we record highest overall instead of highest of both
+        return (highest is None or # in case model thinks there are 0 unclaimed nodes when there actually are
+                highest[0] < threshold_tier or
+                (highest[0] == threshold_tier and highest[1] < threshold_subtier))

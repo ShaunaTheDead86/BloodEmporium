@@ -67,7 +67,7 @@ class Debugger:
             cv2.imwrite(f"output/{self.time}/{bloodweb_iteration}/updated_{update_iteration}.png",
                         updated_image.get_bgr())
 
-    # optimiser - direct output (this is technically not dijkstra optimised when running naive mode)
+    # optimiser - direct output
     def set_dijkstra(self, bloodweb_iteration, update_iteration, dijkstra_graph):
         if self.write_to_output:
             NetworkUtil.write_to_html(dijkstra_graph,
@@ -75,7 +75,7 @@ class Debugger:
         return self
 
     def construct_and_show_images(self, bloodweb_iteration):
-        img = self.cv_images[bloodweb_iteration].get_bgr()
+        img = self.cv_images[bloodweb_iteration].get_bgr(True)
         for node in self.nodes[bloodweb_iteration]:
             cv2.rectangle(img, node.box.nw.xy(), node.box.se.xy(),
                           ColorUtil.bgr_from_cls_name(node.cls_name), 4)

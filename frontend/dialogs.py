@@ -1,7 +1,10 @@
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QMessageBox, QPushButton, QInputDialog, QDialog
+from PyQt5.QtWidgets import QMessageBox, QPushButton, QInputDialog, QDialog, QProgressBar
 
 from frontend.generic import Icons
+from frontend.stylesheets import StyleSheets
+
 
 class Dialog(QDialog):
     def __init__(self, title, object_name):
@@ -23,12 +26,38 @@ class UpdateDialog(QMessageBox, Dialog):
         self.addButton(QPushButton("Install"), QMessageBox.AcceptRole)
         self.addButton(QPushButton("Not Now"), QMessageBox.RejectRole)
 
+# https://stackoverflow.com/questions/19917232/how-to-subclass-qmessagebox-and-add-a-progress-bar-in-pyside
+class UpdatingDialog(QMessageBox, Dialog):
+    def __init__(self, text):
+        super().__init__(text, "updatingDialog")
+        self.progressBar = QProgressBar(self)
+        self.progressBar.setFixedSize(300, 15)
+        self.progressBar.setStyleSheet(f"""
+            QProgressBar {{
+                text-align: center;
+            }}
+            QProgressBar::chunk {{
+                background-color: {StyleSheets.purple};
+            }}""")
+        layout = self.layout()
+        layout.addWidget(self.progressBar, 0, 0, 1, layout.columnCount(), Qt.AlignHCenter)
+        self.progressBar.setMinimum(0)
+        self.progressBar.setMaximum(100)
+
+        self.addButton(QPushButton("Cancel"), QMessageBox.AcceptRole)
+
+    def setProgress(self, progress):
+        self.progressBar.setValue(progress)
+
 class ConfirmDialog(QMessageBox, Dialog):
-    def __init__(self, text, accept_text="Confirm", reject_text="Cancel"):
+    def __init__(self, text, accept_text="Confirm", reject_text="Cancel", no_text=None):
         super().__init__("Confirm", "confirmDialog")
         self.setText(text)
         self.addButton(QPushButton(accept_text), QMessageBox.AcceptRole)
+        if no_text is not None:
+            self.addButton(QPushButton(no_text), QMessageBox.NoRole)
         self.addButton(QPushButton(reject_text), QMessageBox.RejectRole)
+        # order is determined by the role, not the ordering of addButton function calls but im ordering it this way bc of button index when exec is returned
 
 class InputDialog(QInputDialog, Dialog):
     def __init__(self, title, label_text, input_mode, ok_button_text):

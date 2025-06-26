@@ -1,16 +1,17 @@
 import atexit
 import os
+import subprocess
 import sys
 from multiprocessing import freeze_support, Pipe
 from threading import Thread
 from typing import Tuple
 
-from PyQt5.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve, QPoint, QRect, QObject, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap, QColor
+from PyQt5.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve, QPoint, QRect, QObject, pyqtSignal, QUrl
+from PyQt5.QtGui import QIcon, QPixmap, QColor, QDesktopServices
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QMainWindow, QFrame, QPushButton, QGridLayout, QVBoxLayout, \
     QGraphicsDropShadowEffect, QStackedWidget, QSizeGrip, QMessageBox, QSplashScreen
 
-from frontend.dialogs import UpdateDialog
+from frontend.dialogs import UpdateDialog, UpdatingDialog
 from frontend.generic import Font, TextLabel, HyperlinkTextLabel, TextInputBox, Icons
 from frontend.layouts import RowLayout
 from frontend.pages.bloodweb import BloodwebPage
@@ -24,7 +25,7 @@ sys.path.append(os.path.dirname(os.path.realpath("backend/state.py")))
 from backend.config import Config
 from backend.runtime import Runtime
 from backend.state import State
-from backend.updater import Updater, get_latest_update
+from backend.updater import get_latest_update, UpdaterProcess, AssetUpdaterProcess, get_latest_assets
 
 
 class TopBar(QFrame):
@@ -639,8 +640,12 @@ class MainWindow(QMainWindow):
         self.bottomBarLayout = RowLayout(self.bottomBar, "bottomBarLayout")
         self.bottomBarLayout.setContentsMargins(10, 0, 10, 0)
 
-        self.authorLabel = HyperlinkTextLabel(self.bottomBar, "authorLabel", "Made by IIInitiationnn",
-                                              "https://github.com/IIInitiationnn/BloodEmporium", Font(8))
+        self.authorButton = QPushButton("Made by IIInitiationnn", self.bottomBar)
+        self.authorButton.setObjectName("authorButton")
+        self.authorButton.setFont(Font(8))
+        self.authorButton.setStyleSheet(StyleSheets.text_only_button)
+        self.authorButton.setCursor(Qt.PointingHandCursor)
+        self.authorButton.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/IIInitiationnn/BloodEmporium")))
         self.versionLabel = TextLabel(self.bottomBar, "versionLabel", State.version, Font(8))
 
         """
@@ -716,12 +721,13 @@ class MainWindow(QMainWindow):
 
         """
         bottomBar
-            -> authorLabel
+            -> authorButton
+            -> updateButton (if necessary - see add_available_update_button())
             -> versionLabel
         """
-        self.bottomBarLayout.addWidget(self.authorLabel)
+        self.bottomBarLayout.addWidget(self.authorButton)
+        self.bottomBarLayout.addStretch(1)
         self.bottomBarLayout.addWidget(self.versionLabel)
-        self.bottomBarLayout.setStretch(0, 1)
 
         """
         contentPage
@@ -761,6 +767,18 @@ class MainWindow(QMainWindow):
         self.emitter.terminate.connect(self.terminate)
         self.emitter.toggle_text.connect(self.toggle_run_terminate_text)
 
+    def add_available_update_button(self):
+        self.updateButton = QPushButton("An update is available", self.bottomBar)
+        self.updateButton.setObjectName("updateButton")
+        self.updateButton.setFont(Font(8))
+        self.updateButton.setStyleSheet(StyleSheets.text_only_button)
+        self.updateButton.setCursor(Qt.PointingHandCursor)
+        self.updateButton.clicked.connect(update)
+
+        self.bottomBarLayout.removeWidget(self.versionLabel)
+        self.bottomBarLayout.addWidget(self.updateButton)
+        self.bottomBarLayout.addWidget(self.versionLabel)
+
 # https://stackoverflow.com/questions/26746379/how-to-signal-slots-in-a-gui-from-a-different-process
 # https://stackoverflow.com/questions/34525750/mainwindow-object-has-no-attribute-connect
 # receives data from state process via pipe, then emits to main window in this process
@@ -793,15 +811,79 @@ class Emitter(QObject, Thread):
             else:
                 self.emit(*data)
 
+class UpdaterEmitter(QObject, Thread):
+    progress = pyqtSignal(int)
+    completion = pyqtSignal()
+
+    def __init__(self, pipe):
+        QObject.__init__(self)
+        Thread.__init__(self)
+        self.daemon = True # shut down when main window is closed
+        self.pipe = pipe
+
+    def emit(self, signature, args):
+        {
+            "progress": lambda: self.progress.emit(*args),
+            "completion": lambda: self.completion.emit(*args),
+        }[signature]()
+
+    def run(self):
+        while True:
+            try:
+                data = self.pipe.recv()
+            except EOFError:
+                break
+            else:
+                self.emit(*data)
+
+def update():
+    dialog = UpdateDialog(State.version, try_update["tag_name"])
+    selection = dialog.exec()
+    if selection == QMessageBox.AcceptRole:
+        this_pipe, updater_pipe = Pipe() # this can receive, updater can send
+        this_emitter = UpdaterEmitter(this_pipe)
+        this_emitter.start()
+
+        dialog = UpdatingDialog(f"Downloading installer for {try_update['tag_name']}")
+        this_emitter.progress.connect(dialog.setProgress)
+        this_emitter.completion.connect(sys.exit)
+
+        updater = UpdaterProcess(updater_pipe)
+        updater.start()
+
+        selection = dialog.exec()
+        if selection == QMessageBox.AcceptRole:
+            updater.terminate()
+
+def update_assets():
+    this_pipe, updater_pipe = Pipe() # this can receive, updater can send
+    this_emitter = UpdaterEmitter(this_pipe)
+    this_emitter.start()
+
+    dialog = UpdatingDialog("Downloading new assets")
+    this_emitter.progress.connect(dialog.setProgress)
+    this_emitter.completion.connect(restart)
+
+    updater = AssetUpdaterProcess(updater_pipe)
+    updater.start()
+
+    selection = dialog.exec()
+    if selection == QMessageBox.AcceptRole:
+        updater.terminate()
+
+def restart():
+    subprocess.Popen([sys.executable] + sys.argv)
+    sys.exit()
+
 if __name__ == "__main__":
     freeze_support() # --onedir (for exe)
     Config(True) # validate config
     Runtime(True) # validate runtime settings
 
-    os.environ["QT_DEVICE_PIXEL_RATIO"] = "0"
-    os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
-    os.environ["QT_SCREEN_SCALE_FACTORS"] = "1"
+    os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
+    os.environ["QT_SCALE_FACTOR_ROUNDING_POLICY"] = "PassThrough" # https://stackoverflow.com/questions/49277657/qt-creator-too-big-on-3840x2160-and-150-scaling-on-windows-10 / https://github.com/COVESA/dlt-viewer/issues/205
     os.environ["QT_SCALE_FACTOR"] = "1"
+    # TODO blurry images when high dpi scaling
 
     main_pipe, state_pipe = Pipe() # emit from state pipe to main pipe. main can receive, state can send
     main_emitter = Emitter(main_pipe)
@@ -810,7 +892,7 @@ if __name__ == "__main__":
     splash = QSplashScreen(QPixmap(Icons.app_splash))
     splash.show()
 
-    window = MainWindow(state_pipe, main_emitter, len(sys.argv) > 1 and "--dev" in sys.argv[1:])
+    window = MainWindow(state_pipe, main_emitter, len(sys.argv) > 1 and "--dev" in sys.argv)
     splash.finish(window)
     window.show()
 
@@ -820,11 +902,16 @@ if __name__ == "__main__":
     except Exception:
         try_update = None
     if try_update is not None:
-        dialog = UpdateDialog(State.version, try_update["tag_name"])
-        selection = dialog.exec()
-        if selection == QMessageBox.AcceptRole:
-            Updater().run()
-            sys.exit()
+        window.add_available_update_button()
+        update()
+
+    # auto update assets
+    # try:
+    #     try_update_assets = get_latest_assets()
+    # except Exception:
+    #     try_update_assets = None
+    # if try_update_assets is not None:
+    #     update_assets()
 
     @atexit.register
     def shutdown():

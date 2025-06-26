@@ -30,6 +30,7 @@ class TextLabel(QLabel):
         self.setStyleSheet(style_sheet)
         self.setAlignment(Qt.AlignVCenter)
 
+# TODO could remove this and replace with what authorButton and updateButton are using (should make a class for it)
 class HyperlinkTextLabel(QLabel):
     def __init__(self, parent, object_name, text, link, font):
         super().__init__(parent)
@@ -85,6 +86,11 @@ class MultiLineTextInputBox(QPlainTextEdit):
         self.setFont(font)
         self.setStyleSheet(style_sheet)
 
+    def setReadOnly(self, a0: bool) -> None:
+        super().setReadOnly(a0)
+        self.setStyleSheet(StyleSheets.multiline_text_box_read_only if a0 else StyleSheets.multiline_text_box)
+        # self.viewport().setCursor(Qt.ForbiddenCursor if a0 else Qt.IBeamCursor)
+
     def wheelEvent(self, e: QtGui.QWheelEvent) -> None:
         current = self.verticalScrollBar().value()
         minimum = self.verticalScrollBar().minimum()
@@ -138,6 +144,12 @@ class Selector(QComboBox):
 
         self.setObjectName(object_name)
         self.setFont(Font(10))
+        # # size is either QSize or integer for height (with auto sizing width)
+        # if isinstance(size, int):
+        #     self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        #     self.setFixedHeight(size)
+        # else:
+        #     self.setFixedSize(size)
         self.setFixedSize(size)
         self.addItems(items)
         if active_item is not None:
@@ -157,6 +169,9 @@ class Button(QPushButton):
         self.setText(text)
         self.setStyleSheet(StyleSheets.button)
         self.setCursor(QCursor(Qt.PointingHandCursor))
+
+    def setEnabled(self, enabled: bool) -> None:
+        super().setEnabled(enabled)
 
 class CheckBoxWithFunction(CheckBox):
     def __init__(self, parent, object_name, on_click, style_sheet=StyleSheets.check_box):
@@ -265,10 +280,16 @@ class HotkeyInput(QPushButton):
 
     def on_key_down(self, key):
         key = TextUtil.pynput_to_key_string(self.listener, key)
+        if key is None:
+            return
         self.pressed_keys = list(dict.fromkeys(self.pressed_keys + [key]))
         self.setText(" + ".join([TextUtil.title_case(k) for k in self.pressed_keys]))
 
     def on_key_up(self, key):
+        key = TextUtil.pynput_to_key_string(self.listener, key)
+        if key is None:
+            return
+
         self.setText(" + ".join([TextUtil.title_case(k) for k in self.pressed_keys]))
 
         self.active = False

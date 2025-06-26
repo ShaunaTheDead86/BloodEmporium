@@ -58,6 +58,7 @@ class FilterOptionsCollapsibleBox(CollapsibleBox):
         # character
         self.num_per_row = 10
         categories = Data.get_categories(True)
+        killer_aliases = Data.get_killer_alias()
         num_character_columns = math.ceil(len(categories) / self.num_per_row) * 2 + 1 # extra 1 for a gap
         self.characterHeading = TextLabel(self.filters, "characterHeading", "Character")
         self.filtersLayout.addWidget(self.characterHeading, 2, 0, 1, num_character_columns)
@@ -71,7 +72,7 @@ class FilterOptionsCollapsibleBox(CollapsibleBox):
             self.filtersLayout.addWidget(checkbox, (i % self.num_per_row + 3), (i // self.num_per_row) * 2, 1, 1)
 
             label = TextLabel(self.filters, f"{TextUtil.camel_case(character)}CharacterFilterLabel",
-                              TextUtil.title_case(character))
+                              killer_aliases.get(character, TextUtil.title_case(character)))
             self.filtersLayout.addWidget(label, (i % self.num_per_row + 3), (i // self.num_per_row) * 2 + 1, 1, 1)
 
         # rarity
@@ -141,7 +142,7 @@ class FilterOptionsCollapsibleBox(CollapsibleBox):
         self.on_click()
 
     def filter_killers(self):
-        killers = Data.get_killers(False)
+        killers = [killer_id for killer_id, _, _ in Data.get_killers(False)]
         for character, checkbox in self.characterCheckBoxes.items():
             if character in killers:
                 checkbox.setChecked(True)
@@ -162,12 +163,13 @@ class UnlockableWidget(QWidget):
         self.checkBox.clicked.connect(on_unlockable_select)
         self.layout.addWidget(self.checkBox)
 
+        killer_names = Data.get_killer_full_name(True)
         self.image = QLabel(self)
         self.image.setObjectName(f"{name}Image")
         self.image.setFixedSize(QSize(75, 75))
         self.refresh_icon()
         self.image.setScaledContents(True)
-        self.image.setToolTip(f"""Character: {TextUtil.title_case(unlockable.category)}
+        self.image.setToolTip(f"""Character: {killer_names.get(unlockable.category, TextUtil.title_case(unlockable.category))}
 Rarity: {TextUtil.title_case(unlockable.rarity)}
 Type: {TextUtil.title_case(unlockable.type)}""")
         self.layout.addWidget(self.image)
@@ -179,7 +181,7 @@ Type: {TextUtil.title_case(unlockable.type)}""")
         self.label.setText(unlockable.name)
         self.layout.addWidget(self.label)
 
-        self.layout.addSpacing(250 - self.label.fontMetrics().boundingRect(self.label.text()).width())
+        self.layout.addSpacing(375 - self.label.fontMetrics().boundingRect(self.label.text()).width())
 
         self.tierLabel = QLabel(self)
         self.tierLabel.setObjectName(f"{name}TierLabel")
@@ -208,50 +210,56 @@ Type: {TextUtil.title_case(unlockable.type)}""")
         self.layout.addStretch(1)
 
     def on_tier_update(self):
-        self.tierInput.setStyleSheet(StyleSheets.tiers_input(self.tierInput.text()))
+        self.tierInput.setStyleSheet(StyleSheets.tiers_input(self.tierInput.text(), self.tierInput.isReadOnly()))
 
     def on_subtier_update(self):
-        self.subtierInput.setStyleSheet(StyleSheets.tiers_input(self.subtierInput.text()))
+        self.subtierInput.setStyleSheet(StyleSheets.tiers_input(self.subtierInput.text(), self.subtierInput.isReadOnly()))
 
     def setTiers(self, tier=None, subtier=None):
         if tier is not None:
             self.tierInput.setText(str(tier))
-            self.tierInput.setStyleSheet(StyleSheets.tiers_input(tier))
+            self.tierInput.setStyleSheet(StyleSheets.tiers_input(tier, self.tierInput.isReadOnly()))
         if subtier is not None:
             self.subtierInput.setText(str(subtier))
-            self.subtierInput.setStyleSheet(StyleSheets.tiers_input(subtier))
+            self.subtierInput.setStyleSheet(StyleSheets.tiers_input(subtier, self.subtierInput.isReadOnly()))
 
     def getTiers(self):
         return int(self.tierInput.text()), int(self.subtierInput.text())
 
     def refresh_icon(self):
-        if self.unlockable.is_custom_icon:
-            self.image.setPixmap(QPixmap(self.unlockable.image_path))
+        if self.unlockable.are_custom_icons[0]:
+            self.image.setPixmap(QPixmap(self.unlockable.image_paths[0]))
         else:
             try:
                 bg = Image.open(f"{Path.assets_backgrounds}/{self.unlockable.rarity}.png")
-                icon = Image.open(self.unlockable.image_path)
+                icon = Image.open(self.unlockable.image_paths[0])
                 combined = Image.alpha_composite(bg, icon)
                 self.image.setPixmap(QPixmap.fromImage(ImageQt.ImageQt(combined)))
             except:
                 print(f"error adding background to {self.unlockable.unique_id}")
-                self.image.setPixmap(QPixmap(self.unlockable.image_path))
+                self.image.setPixmap(QPixmap(self.unlockable.image_paths[0]))
 
 class PreferencesPage(QWidget):
     def get_edit_profile(self):
         return self.profileSelector.currentText() if self.profileSelector.count() > 0 else None
 
+    def get_edit_profile_index(self):
+        return self.profileSelector.currentIndex() # -1 if empty
+
     def update_profiles_from_config(self):
         config = Config()
         while self.profileSelector.count() > 0:
             self.profileSelector.removeItem(0)
-        self.profileSelector.addItems(config.profile_names())
+        self.profileSelector.addItems(config.profile_names(True) + config.profile_names(False))
 
         while self.bloodwebPage.profileSelector.count() > 0:
             self.bloodwebPage.profileSelector.removeItem(0)
-        self.bloodwebPage.profileSelector.addItems(config.profile_names())
+        self.bloodwebPage.profileSelector.addItems(config.profile_names(True) + config.profile_names(False))
 
     def has_unsaved_changes(self):
+        if self.profileSelectorIsBundled:
+            return False
+
         config = Config()
         profile_id = self.get_edit_profile()
         if profile_id is None:
@@ -265,7 +273,7 @@ class PreferencesPage(QWidget):
 
         for widget in self.unlockableWidgets:
             tier, subtier = widget.getTiers()
-            config_tier, config_subtier = config.preference_by_profile(widget.unlockable.unique_id, profile)
+            config_tier, config_subtier = Config.preference_by_profile(widget.unlockable.unique_id, profile)
             if tier != config_tier or subtier != config_subtier:
                 return True
 
@@ -308,10 +316,22 @@ class PreferencesPage(QWidget):
         if not self.ignore_profile_signals:
             # TODO prompt: unsaved changes (save or discard) - override profile selector currentindexchanged method?
             config = Config()
+            self.profileSelectorIsBundled = self.get_edit_profile_index() < len(config.bundled_profiles)
             profile_id = self.get_edit_profile()
+
+            self.saveButton.setEnabled(not self.profileSelectorIsBundled)
+            self.renameButton.setEnabled(not self.profileSelectorIsBundled)
+            self.deleteButton.setEnabled(not self.profileSelectorIsBundled)
+            self.profileNotes.setReadOnly(self.profileSelectorIsBundled)
+
             for widget in self.unlockableWidgets:
-                widget.setTiers(*config.preference_by_id(widget.unlockable.unique_id, profile_id))
-            self.profileNotes.setPlainText(config.notes_by_id(profile_id))
+                widget.tierInput.setReadOnly(self.profileSelectorIsBundled)
+                widget.subtierInput.setReadOnly(self.profileSelectorIsBundled)
+            self.editDropdownContentApplyButton.setEnabled(not self.profileSelectorIsBundled)
+
+            for widget in self.unlockableWidgets:
+                widget.setTiers(*config.preference_by_id(widget.unlockable.unique_id, profile_id, self.profileSelectorIsBundled))
+            self.profileNotes.setPlainText(config.notes_by_id(profile_id, self.profileSelectorIsBundled))
 
     def new_profile(self):
         if not self.ignore_profile_signals:
@@ -319,10 +339,16 @@ class PreferencesPage(QWidget):
             if self.has_unsaved_changes():
                 save_profile_dialog = ConfirmDialog("You have unsaved changes to the current profile. "
                                                     "Do you wish to save or discard these changes?",
-                                                    "Save", "Discard")
-                confirmation = save_profile_dialog.exec()
-                if confirmation == QMessageBox.AcceptRole:
+                                                    "Save", "Cancel", "Discard")
+                # shown order is save (index 0), discard (1), cancel (2) since it turns out the exec return is the button index (in order of addition) not the role
+                confirmation_index = save_profile_dialog.exec()
+                print(confirmation_index)
+                if confirmation_index == 0: # save
                     self.save_profile()
+                elif confirmation_index == 2: # cancel
+                    self.ignore_profile_signals = False
+                    return
+                # save and discard fall through
 
             config = Config()
             profile_id = config.get_next_free_profile_name()
@@ -337,9 +363,15 @@ class PreferencesPage(QWidget):
             self.switch_edit_profile()
 
     def save_profile(self):
+        # if self.profileSelectorIsBundled:
+        #     self.show_preferences_page_save_error(f"You cannot modify a bundled profile. Please save your own version "
+        #                                           "of this preset and make changes in that profile instead.")
+        #     return
+
         profile_id = self.get_edit_profile()
         if profile_id is None:
             return
+
         updated_profile = Config().get_profile_by_id(profile_id).copy()
         updated_profile["notes"] = self.profileNotes.toPlainText()
 
@@ -361,20 +393,20 @@ class PreferencesPage(QWidget):
         self.show_preferences_page_save_success(f"Changes saved to profile: {profile_id}")
         QTimer.singleShot(10000, self.hide_preferences_page_save_text)
 
-    def save_to_profile(self, title, label_text, ok_button_text, index=None):
+    def save_to_profile(self, title, label_text, ok_button_text, index=None) -> str or None:
         # check for invalid tiers
         non_integer = Config.verify_tiers(self.unlockableWidgets)
         if len(non_integer) > 0:
             self.show_preferences_page_save_error(f"There are {len(non_integer)} unlockables with "
                                                   "invalid inputs. Inputs must be a number from -999 to "
                                                   "999. Changes not saved.")
-            return
+            return None
 
         # save or cancel
         new_profile_dialog = InputDialog(title, label_text, QInputDialog.TextInput, ok_button_text)
         selection = new_profile_dialog.exec()
         if selection != QInputDialog.Accepted:
-            return
+            return None
 
         # check if user wants to overwrite profile
         profile_id = new_profile_dialog.textValue()
@@ -383,7 +415,7 @@ class PreferencesPage(QWidget):
                                                      "sure you want to save?")
             confirmation = overwrite_profile_dialog.exec()
             if confirmation != QMessageBox.AcceptRole:
-                return
+                return None
 
         # user either wants to overwrite, or is saving new profile
         new_profile = {"id": profile_id, "notes": self.profileNotes.toPlainText()}
@@ -408,11 +440,19 @@ class PreferencesPage(QWidget):
     def save_as_profile(self):
         if not self.ignore_profile_signals:
             self.ignore_profile_signals = True # saving as new profile; don't trigger
-            self.save_to_profile("Save As", "Enter your new profile name:", "Save")
+            new_profile_id = self.save_to_profile("Save As", "Enter your new profile name:", "Save")
             self.ignore_profile_signals = False
+            if new_profile_id is None:
+                return
+            self.switch_edit_profile()
 
     def rename_profile(self):
         if not self.ignore_profile_signals:
+            # if self.profileSelectorIsBundled:
+            #     self.show_preferences_page_save_error(f"You cannot modify a bundled profile. Please save your own version "
+            #                                           "of this preset and make changes in that profile instead.")
+            #     return
+
             self.ignore_profile_signals = True
 
             old_profile_id = self.get_edit_profile()
@@ -443,6 +483,10 @@ class PreferencesPage(QWidget):
 
     def delete_profile(self):
         if not self.ignore_profile_signals:
+            # if self.profileSelectorIsBundled:
+            #     self.show_preferences_page_save_error(f"You cannot delete a bundled profile.")
+            #     return
+
             self.ignore_profile_signals = True
             profile_id = self.get_edit_profile()
             if profile_id is None:
@@ -479,7 +523,7 @@ class PreferencesPage(QWidget):
                 return
 
         profile_id = self.get_edit_profile()
-        Config().export_profile(profile_id)
+        Config().export_profile(profile_id, self.profileSelectorIsBundled)
         self.show_preferences_page_save_success(f"Profile exported to \"{profile_id}.emp\". Share it with friends!")
 
     def import_profile(self):
@@ -642,8 +686,8 @@ class PreferencesPage(QWidget):
         icons = Data.get_icons()
         for unlockableWidget in self.unlockableWidgets:
             info = icons[unlockableWidget.unlockable.unique_id]
-            unlockableWidget.unlockable.set_image_path(info["image_path"])
-            unlockableWidget.unlockable.set_is_custom_icon(info["is_custom_icon"])
+            unlockableWidget.unlockable.set_image_path(info["image_paths"])
+            unlockableWidget.unlockable.set_are_custom_icons(info["are_custom_icons"])
             unlockableWidget.refresh_icon()
 
     def __init__(self, bloodweb_page):
@@ -675,8 +719,9 @@ class PreferencesPage(QWidget):
         self.profileLabel = TextLabel(self.scrollAreaContent, "preferencesPageProfileLabel", "Preference Profile",
                                       Font(12))
 
-        self.profileSelector = Selector(self.profileSaveRow, "preferencesPageProfileSelector", QSize(250, 40),
-                                        config.profile_names())
+        self.profileSelector = Selector(self.profileSaveRow, "preferencesPageProfileSelector", QSize(350, 40),
+                                        config.profile_names(True) + config.profile_names(False))
+        self.profileSelectorIsBundled = self.get_edit_profile_index() < len(config.bundled_profiles) # whether currently selected preset is bundled
         self.profileSelector.currentIndexChanged.connect(self.switch_edit_profile)
 
         self.saveSuccessText = TextLabel(self.profileSaveRow, "preferencesPageSaveSuccessText", "", Font(10))
@@ -720,8 +765,8 @@ class PreferencesPage(QWidget):
         self.openExportsButton.clicked.connect(self.open_exports_folder)
 
         self.profileNotes = MultiLineTextInputBox(self.scrollAreaContent, "preferencesPageProfileNotes",
-                                                  450, 100, 150, "Notes for this profile")
-        self.profileNotes.setPlainText(Config().notes_by_id(self.get_edit_profile()))
+                                                  565, 125, 250, "Notes for this profile")
+        self.profileNotes.setPlainText(Config().notes_by_id(self.get_edit_profile(), self.profileSelectorIsBundled))
 
         # filters
         self.filtersBox = FilterOptionsCollapsibleBox(self.scrollAreaContent, "preferencesPageFiltersBox",
@@ -747,7 +792,8 @@ class PreferencesPage(QWidget):
         # all unlockables
         self.unlockableWidgets = [UnlockableWidget(self.scrollAreaContent, unlockable,
                                                    *config.preference_by_id(unlockable.unique_id,
-                                                                            self.get_edit_profile()),
+                                                                            self.get_edit_profile(),
+                                                                            self.profileSelectorIsBundled),
                                                    self.on_unlockable_select)
                                   for unlockable in Data.get_unlockables()
                                   if unlockable.category not in ["unused", "retired"]]
@@ -931,4 +977,5 @@ class PreferencesPage(QWidget):
         self.layout.setRowStretch(0, 1)
         self.layout.setColumnStretch(0, 1)
 
-        self.sortSelector.setCurrentIndex(1) # self.lastSortedBy becomes "character"
+        self.sortSelector.setCurrentIndex(0) # self.lastSortedBy becomes "default"
+        self.switch_edit_profile() # initialise all read only stuff etc

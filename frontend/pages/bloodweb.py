@@ -18,14 +18,11 @@ from backend.util.text_util import TextUtil
 
 class BloodwebPage(QWidget):
     def on_select_run_mode(self, mode):
-        self.naiveCheckBox.setChecked(mode == "naive")
         self.awareSingleCheckBox.setChecked(mode == "aware_single")
         self.awareMultiCheckBox.setChecked(mode == "aware_multi")
-        self.profileSelector.setEnabled(mode != "naive")
-        self.thresholdCheckBox.setEnabled(mode != "naive")
-        self.thresholdTierInput.setReadOnly(mode == "naive" or not self.thresholdCheckBox.isChecked())
-        self.thresholdSubtierInput.setReadOnly(mode == "naive" or not self.thresholdCheckBox.isChecked())
-        if mode != "naive" and self.thresholdCheckBox.isChecked():
+        self.thresholdTierInput.setReadOnly(not self.thresholdCheckBox.isChecked())
+        self.thresholdSubtierInput.setReadOnly(not self.thresholdCheckBox.isChecked())
+        if self.thresholdCheckBox.isChecked():
             self.thresholdTierInput.setStyleSheet(StyleSheets.threshold_input(self.thresholdTierInput.text()))
             self.thresholdSubtierInput.setStyleSheet(StyleSheets.threshold_input(self.thresholdSubtierInput.text()))
         Runtime().set_mode(mode)
@@ -163,37 +160,33 @@ class BloodwebPage(QWidget):
         self.scrollAreaContentLayout.setContentsMargins(0, 0, 0, 0)
         self.scrollAreaContentLayout.setSpacing(15)
 
+        config = Config()
         self.profileLabel = TextLabel(self, "bloodwebPageProfileLabel", "Preference Profile", Font(12))
-        self.profileSelector = Selector(self, "bloodwebPageProfileSelector", QSize(250, 40), Config().profile_names())
-        index = self.profileSelector.findText(runtime.profile())
-        set_profile = lambda: Runtime().set_profile(self.profileSelector.currentText())
+        self.profileSelector = Selector(self, "bloodwebPageProfileSelector", QSize(350, 40),
+                                        config.profile_names(True) + config.profile_names(False))
+        index = self.profileSelector.findText(runtime.profile()[0]) # TODO what if bundled and personal have same name?
+        set_profile = lambda: Runtime().set_profile(self.profileSelector.currentText(), self.profileSelector.currentIndex() < len(config.bundled_profiles))
         if index != -1:
             self.profileSelector.setCurrentIndex(index)
         else:
             set_profile()
         self.profileSelector.currentIndexChanged.connect(set_profile)
 
+        killer_names = Data.get_killer_full_name()
+        characters = {killer_names.get(character_id, character_id).lower(): character_id for character_id in Data.get_characters(True)}
+        characters_reverse = {v: k for k, v in characters.items()} # id to full name
         self.characterLabel = TextLabel(self, "bloodwebPageCharacterLabel", "Character", Font(12))
         self.characterDescription = TextLabel(self, "bloodwebPageCharacterDescription",
                                               "Select the character whose bloodweb you are levelling.")
-        self.characterSelector = Selector(self, "bloodwebPageCharacterSelector", QSize(150, 40),
-                                          Data.get_characters(True))
-        index = self.characterSelector.findText(runtime.character())
+        self.characterSelector = Selector(self, "bloodwebPageCharacterSelector", QSize(225, 40),
+                                          list(characters.keys()))
+        index = self.characterSelector.findText(characters_reverse[runtime.character()])
         if index != -1:
             self.characterSelector.setCurrentIndex(index)
         self.characterSelector.currentIndexChanged.connect(
-            lambda: Runtime().set_character(self.characterSelector.currentText()))
+            lambda: Runtime().set_character(characters[self.characterSelector.currentText()]))
 
         self.runModeLabel = TextLabel(self, "bloodwebPageRunModeLabel", "Selection Mode", Font(12))
-
-        self.naiveRow = QWidget(self)
-        self.naiveRow.setObjectName("bloodwebPageNaiveRow")
-        self.naiveRowLayout = RowLayout(self.naiveRow, "bloodwebPageNaiveRowLayout")
-        self.naiveCheckBox = CheckBox(self.naiveRow, "bloodwebPageNaiveCheckBox")
-        self.naiveCheckBox.clicked.connect(lambda: self.on_select_run_mode("naive"))
-        self.naiveDescription = TextLabel(self.naiveRow, "bloodwebPageNaiveDescription",
-                                          "Naive mode: selected profile will be ignored and auto-buy will be used "
-                                          "where possible (use if you do not care about which items are selected).")
 
         self.awareSingleRow = QWidget(self)
         self.awareSingleRow.setObjectName("bloodwebPageAwareSingleRow")
@@ -201,7 +194,7 @@ class BloodwebPage(QWidget):
         self.awareSingleCheckBox = CheckBox(self.awareSingleRow, "bloodwebPageAwareSingleCheckBox")
         self.awareSingleCheckBox.clicked.connect(lambda: self.on_select_run_mode("aware_single"))
         self.awareSingleDescription = TextLabel(self.awareSingleRow, "bloodwebPageAwareSingleDescription",
-                                                "Aware mode (single-claim): items will be selected one at a time "
+                                                "Single-claim: items will be selected one at a time "
                                                 "according to your preference profile.")
 
         self.awareMultiRow = QWidget(self)
@@ -210,7 +203,7 @@ class BloodwebPage(QWidget):
         self.awareMultiCheckBox = CheckBox(self.awareMultiRow, "bloodwebPageAwareMultiCheckBox")
         self.awareMultiCheckBox.clicked.connect(lambda: self.on_select_run_mode("aware_multi"))
         self.awareMultiDescription = TextLabel(self.awareMultiRow, "bloodwebPageAwareMultiDescription",
-                                               "Aware mode (multi-claim): items will be selected along entire paths "
+                                               "Multi-claim: items will be selected along entire paths "
                                                "according to your preference profile (slightly faster but the entity "
                                                "may consume some items before they can be reached).")
 
@@ -239,7 +232,7 @@ class BloodwebPage(QWidget):
         self.on_select_speed(runtime.speed())
 
         self.thresholdLabel = TextLabel(self, "bloodwebPageThresholdLabel",
-                                        "Auto-Purchase Threshold (Aware-Mode Only)", Font(12))
+                                        "Auto-Purchase Threshold", Font(12))
         self.thresholdRow = QWidget(self)
         self.thresholdRow.setObjectName("bloodwebPageThresholdRow")
         self.thresholdRowLayout = RowLayout(self.thresholdRow, "bloodwebPageThresholdRowLayout")
@@ -341,9 +334,6 @@ class BloodwebPage(QWidget):
         self.on_bloodpoint_signal(0, None)
         self.runTimeProgress.setText(f"Time elapsed: 0s")
 
-        self.naiveRowLayout.addWidget(self.naiveCheckBox)
-        self.naiveRowLayout.addWidget(self.naiveDescription)
-        self.naiveRowLayout.addStretch(1)
         self.awareSingleRowLayout.addWidget(self.awareSingleCheckBox)
         self.awareSingleRowLayout.addWidget(self.awareSingleDescription)
         self.awareSingleRowLayout.addStretch(1)
@@ -389,7 +379,6 @@ class BloodwebPage(QWidget):
         self.scrollAreaContentLayout.addWidget(self.characterDescription)
         self.scrollAreaContentLayout.addWidget(self.characterSelector)
         self.scrollAreaContentLayout.addWidget(self.runModeLabel)
-        self.scrollAreaContentLayout.addWidget(self.naiveRow)
         self.scrollAreaContentLayout.addWidget(self.awareSingleRow)
         self.scrollAreaContentLayout.addWidget(self.awareMultiRow)
         self.scrollAreaContentLayout.addWidget(self.speedLabel)

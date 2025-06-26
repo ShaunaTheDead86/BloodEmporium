@@ -1,9 +1,39 @@
 import json
 import os
 from shutil import copyfile
+from typing import Dict, List, Any
 
 from exceptions import ConfigError
 
+migrations = [
+    # 7.3.3 hawkins reinstatement
+    ("iconPerks_situationalAwareness_survivor", "iconPerks_betterTogether_survivor"),
+    ("iconPerks_survivalInstincts_survivor",    "iconPerks_innerStrength_survivor"),
+    ("iconPerks_guardian_survivor",             "iconPerks_babySitter_survivor"),
+    ("iconPerks_pushThroughIt_survivor",        "iconPerks_secondWind_survivor"),
+
+    # 7.5.0 hillbilly changes
+    ("iconAddon_junkyardAirFilter_hillbilly",   "iconAddon_greasedThrottle_hillbilly"),
+    ("iconAddon_heavyClutch_hillbilly",         "iconAddon_counterweight_hillbilly"),
+    ("iconAddon_speedLimiter_hillbilly",        "iconAddon_crackedPrimerBulb_hillbilly"),
+    ("iconAddon_puncturedMuffler_hillbilly",    "iconAddon_thermalCasing_hillbilly"),
+    ("iconAddon_deathEngravings_hillbilly",     "iconAddon_cloggedIntake_hillbilly"),
+    ("iconAddon_bigBuckle_hillbilly",           "iconAddon_chainsBloody_hillbilly"),
+    ("iconAddon_mothersHelpers_hillbilly",      "iconAddon_discardedAirFilter_hillbilly"),
+    ("iconAddon_leafyMash_hillbilly",           "iconAddon_raggedEngine_hillbilly"),
+    ("iconAddon_doomEngravings_hillbilly",      "iconAddon_iridescentEngravings_hillbilly"),
+    ("iconAddon_blackGrease_hillbilly",         "iconAddon_theThompsonsMix_hillbilly"),
+    ("iconAddon_pighouseGloves_hillbilly",      "iconAddon_highSpeedIdlerScrew_hillbilly"),
+    ("iconAddon_iridescentBrick_hillbilly",     "iconAddon_filthySlippers_hillbilly"),
+
+    # 8.1.0 knight changes
+    ("iconAddon_ChainmailFragment_knight",      "iconAddon_SharpenedMount_knight"),
+    ("iconAddon_LightweightGreaves_knight",     "iconAddon_JailersChimes_knight"),
+
+    # 9.0.0 shroud changes
+    ("iconFavors_shroudOfSeparation_killer",    "T_UI_iconsFavors_shroudOfVanishing_killer"),
+    ("iconFavors_shroudOfBinding_survivor",     "iconFavors_shroudOfSeparation_survivor"),
+]
 
 class Config:
     def __init__(self, validate=False):
@@ -12,7 +42,7 @@ class Config:
                 copyfile("assets/default_config.json", "config.json")
 
             with open("config.json", "r") as f:
-                self.config = dict(json.load(f))
+                self.config: Dict[str, Any] = dict(json.load(f))
             self.commit_changes() # ensure all necessary keys are in (essentially copying missing values)
 
         with open("config.json", "r") as f:
@@ -39,7 +69,14 @@ class Config:
                     if "subtier" not in v:
                         invalid_unlockables.append(unique_id)
                         continue
+
             [profile.pop(invalid_unlockable) for invalid_unlockable in invalid_unlockables]
+
+        self.bundled_profiles = []
+        if os.path.isdir("assets/presets"):
+            for file in os.listdir("assets/presets"):
+                with open(f"assets/presets/{file}", "r") as f:
+                    self.bundled_profiles.append(json.load(f))
 
     def top_left(self):
         return self.config["capture"]["top_left_x"], self.config["capture"]["top_left_y"]
@@ -56,35 +93,38 @@ class Config:
     def primary_mouse(self):
         return self.config["primary_mouse"]
 
-    def __profiles(self):
-        return self.config["profiles"]
+    def __profiles(self, bundled=False) -> List[Dict[str, Any]]:
+        return self.bundled_profiles if bundled else self.config["profiles"]
 
-    def get_profile_by_id(self, profile_id):
+    def get_profile_by_id(self, profile_id, bundled=False):
         if profile_id is None:
             return {"id": None, "notes": ""}
-        profiles = self.__profiles()
+        profiles = self.__profiles(bundled)
         return [p for p in profiles if p["id"] == profile_id].pop(0) if len(profiles) > 0 else {"id": None, "notes": ""}
 
-    def notes_by_id(self, profile_id):
+    def notes_by_id(self, profile_id, bundled=False):
         if profile_id is None:
             return ""
-        return self.get_profile_by_id(profile_id).get("notes", "")
+        return self.get_profile_by_id(profile_id, bundled).get("notes", "")
 
-    def preference_by_id(self, unlockable_id, profile_id):
+    def preference_by_id(self, unlockable_id, profile_id, bundled=False):
         if profile_id is None:
             return 0, 0
-        return self.preference_by_profile(unlockable_id, self.get_profile_by_id(profile_id))
+        return Config.preference_by_profile(unlockable_id, self.get_profile_by_id(profile_id, bundled))
 
-    def preference_by_profile(self, unlockable_id, profile):
-        p = profile.get(unlockable_id, {})
+    @staticmethod
+    def preference_by_profile(unlockable_id, profile_data):
+        p = profile_data.get(unlockable_id, {})
         return p.get("tier", 0), p.get("subtier", 0)
 
-    def profile_names(self):
-        return [profile["id"] for profile in self.__profiles()]
+    def profile_names(self, bundled=False):
+        return [profile["id"] for profile in self.__profiles(bundled)]
 
     def commit_changes(self):
         with open("assets/default_config.json", "r") as default:
             default_config = dict(json.load(default))
+            for profile in self.config.get("profiles", []):
+                Config.migrate_profile(profile)
             with open("config.json", "w") as output:
                 json.dump({
                     "path": self.config.get("path", default_config["path"]),
@@ -93,6 +133,7 @@ class Config:
                     "primary_mouse": self.config.get("primary_mouse", default_config["primary_mouse"]),
                     "profiles": self.config.get("profiles", default_config["profiles"]),
                 }, output, indent=4) # to preserve order
+        copyfile("config.json", "config_backup.json")
 
     @staticmethod
     def verify_tiers(widgets):
@@ -177,9 +218,16 @@ class Config:
         self.config["profiles"].remove(to_be_removed)
         self.commit_changes()
 
-    def export_profile(self, profile_id):
+    def export_profile(self, profile_id, bundled=False):
         if profile_id is None:
             return
-        profile = self.get_profile_by_id(profile_id)
+        profile = self.get_profile_by_id(profile_id, bundled)
         with open(f"exports/{profile_id}.emp", "w") as file:
             file.write(json.dumps(profile))
+
+    @staticmethod
+    def migrate_profile(profile):
+        for migration_src, migration_dst in migrations:
+            if migration_src in profile:
+                profile[migration_dst] = profile[migration_src]
+                profile.pop(migration_src)
